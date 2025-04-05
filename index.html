@@ -86,10 +86,15 @@
         alert("Waiting for location...");
         return;
       }
+// Get location and snap to the center of the H3 hexagon
+      const rawLat = userLatLng[1];
+      const rawLng = userLatLng[0];
+      const zone = h3.geoToH3(rawLat, rawLng, 6);
+      const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
 
-      const lat = userLatLng[1];
-      const lng = userLatLng[0];
-      const zone = h3.geoToH3(lat, lng, 6);
+      console.log('📍 You are in H3 Zone:', zone);
+      console.log('📌 Zone center at:', zoneLat, zoneLng);
+
 
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
 	 
