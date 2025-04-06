@@ -41,7 +41,7 @@
       zoom: 3
     });
 
-    const resolution = 6;
+    const resolution = 3;
     const hexLayerId = 'hexagons';
 
     const generateHandle = () => {
@@ -87,25 +87,30 @@
       } else {
         map.addSource(hexLayerId, { type: 'geojson', data: hexSource.data });
 
-        map.addLayer({
-          id: hexLayerId,
-          type: 'fill',
-          source: hexLayerId,
-          paint: {
-            'fill-color': '#1db954',
-            'fill-opacity': 0.15
-          }
-        });
+ map.addLayer({
+  id: hexLayerId,
+  type: 'fill',
+  source: hexLayerId,
+  paint: {
+    'fill-color': [
+      'case',
+      ['boolean', ['feature-state', 'hover'], false],
+      '#88ff88', // highlight on hover
+      '#1db954'  // default fill
+    ],
+    'fill-opacity': 0.2
+  }
+});
 
-        map.addLayer({
-          id: hexLayerId + '-outline',
-          type: 'line',
-          source: hexLayerId,
-          paint: {
-            'line-color': '#ffffff',
-            'line-width': 6
-          }
-        });
+map.addLayer({
+  id: hexLayerId + '-outline',
+  type: 'line',
+  source: hexLayerId,
+  paint: {
+    'line-color': '#0a0',
+    'line-width': 3
+  }
+});
       }
     }
 
