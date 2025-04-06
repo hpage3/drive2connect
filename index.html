@@ -49,9 +49,9 @@
     mapboxgl.accessToken = 'pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w';
 
     function generateHandle() {
-      const adjectives = ['Fast', 'Lonely', 'Wild', 'Rusty', 'Silver', 'Sleepy'];
-      const nouns = ['Coyote', 'Mustang', 'Outlaw', 'Wanderer', 'Nomad', 'Hawk'];
-      return `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
+      const adjectives = ['Fast', 'Lonely', 'Wild', 'Rusty', 'Silver', 'Sleepy', 'Lucky', 'Rough', 'Free', 'Roamin'];
+      const nouns = ['Coyote', 'Mustang', 'Outlaw', 'Wanderer', 'Nomad', 'Hawk', 'Fox', 'Bison', 'Drifter', 'Thunder'];
+      return `${adjectives[Math.floor(Math.random() * adjectives.length)]}-${nouns[Math.floor(Math.random() * nouns.length)]}-${Math.floor(100 + Math.random() * 900)}`;
     }
 
     const map = new mapboxgl.Map({
@@ -86,19 +86,42 @@
         alert("Waiting for location...");
         return;
       }
-// Get location and snap to the center of the H3 hexagon
+
       const rawLat = userLatLng[1];
       const rawLng = userLatLng[0];
       const zone = h3.geoToH3(rawLat, rawLng, 6);
       const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
 
-      console.log('📍 You are in H3 Zone:', zone);
-      console.log('📌 Zone center at:', zoneLat, zoneLng);
+      console.log('📍 H3 Zone:', zone);
+      console.log('📌 Zone center:', zoneLat, zoneLng);
 
+      // Draw hex boundary on map
+      const hexBoundary = h3.h3ToGeoBoundary(zone, true);
+      const hexCoords = hexBoundary.map(([lat, lng]) => [lng, lat]);
+      hexCoords.push(hexCoords[0]); // close the polygon
+
+      map.addSource('h3-hex', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [hexCoords]
+          }
+        }
+      });
+
+      map.addLayer({
+        id: 'h3-hex-layer',
+        type: 'line',
+        source: 'h3-hex',
+        paint: {
+          'line-color': '#ff0000',
+          'line-width': 3
+        }
+      });
 
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
-	 
-
       adAudio.onplay = () => console.log('🎵 Ad started playing');
       adAudio.onerror = (e) => console.error('❌ Ad playback error:', e);
       adAudio.onended = () => {
