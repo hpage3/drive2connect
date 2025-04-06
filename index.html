@@ -79,7 +79,7 @@
         const rawLng = position.coords.longitude;
 
         actualLatLng = [rawLng, rawLat]; // used for navigation
-        const zone = h3.geoToH3(rawLat, rawLng, 6);
+        const zone = h3.geoToH3(rawLat, rawLng, 3);
         const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
 
         hexLatLng = [zoneLng, zoneLat]; // used for chat + map marker
