@@ -2,10 +2,9 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Roameoroameo – Demo + Navigation</title>
+  <title>Roameoroameo – Demo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
-  <link href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.css' rel='stylesheet' />
   <style>
     body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }
@@ -24,12 +23,11 @@
   </style>
 </head>
 <body>
-  <div id="message">🧭 Click on a hex to join that room. Navigation starts from your location.</div>
+  <div id="message">🧭 Click a hexagon to join that voice room. Ad plays first.</div>
   <div id='map'></div>
 
   <!-- Scripts -->
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
-  <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.js'></script>
   <script src="https://unpkg.com/h3-js@3.7.2/dist/h3-js.umd.js"></script>
   <script src='https://fairmeeting.net/external_api.js'></script>
 
@@ -43,21 +41,8 @@
       zoom: 3
     });
 
-    const resolution = 3;
-    let actualLatLng = null;
+    const resolution = 6;
     const hexLayerId = 'hexagons';
-
-    const directions = new MapboxDirections({
-      accessToken: mapboxgl.accessToken,
-      unit: 'metric',
-      profile: 'mapbox/walking',
-      controls: {
-        instructions: true,
-        inputs: true,
-        profileSwitcher: true
-      }
-    });
-    map.addControl(directions, 'top-left');
 
     const generateHandle = () => {
       const adjectives = ['Fast', 'Lonely', 'Wild', 'Rusty', 'Silver', 'Sleepy', 'Lucky', 'Rough', 'Free', 'Roamin'];
@@ -101,14 +86,24 @@
         map.getSource(hexLayerId).setData(hexSource.data);
       } else {
         map.addSource(hexLayerId, { type: 'geojson', data: hexSource.data });
+
         map.addLayer({
           id: hexLayerId,
           type: 'fill',
           source: hexLayerId,
           paint: {
             'fill-color': '#1db954',
-            'fill-opacity': 0.2,
-            'fill-outline-color': '#1db954'
+            'fill-opacity': 0.15
+          }
+        });
+
+        map.addLayer({
+          id: hexLayerId + '-outline',
+          type: 'line',
+          source: hexLayerId,
+          paint: {
+            'line-color': '#1db954',
+            'line-width': 2
           }
         });
       }
@@ -123,42 +118,31 @@
         `&config.prejoinPageEnabled=false` +
         `&config.enableWelcomePage=false`;
 
+      const win = window.open('', '_blank'); // must be called on user click
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
-      adAudio.onended = () => {
-        window.open(jitsiUrl, '_blank');
-      };
-      adAudio.onerror = () => {
-        window.open(jitsiUrl, '_blank');
-      };
+      adAudio.onended = () => win.location.href = jitsiUrl;
+      adAudio.onerror = () => win.location.href = jitsiUrl;
       adAudio.play();
     }
 
     navigator.geolocation.getCurrentPosition(
-      position => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        actualLatLng = [lng, lat];
-        directions.setOrigin(actualLatLng);
-        new mapboxgl.Marker().setLngLat(actualLatLng).addTo(map);
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        map.setCenter([longitude, latitude]);
+        map.setZoom(6.5); // ~200-mile radius
       },
-      error => {
-        alert("⚠️ Location access is needed for navigation. Please refresh and allow it.");
-        console.error(error);
+      err => {
+        console.warn("Geolocation failed or denied. Using default center.");
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
 
     map.on('load', () => {
       drawHexLayer(getHexes(map.getBounds()));
-
-      map.on('moveend', () => {
-        drawHexLayer(getHexes(map.getBounds()));
-      });
-
+      map.on('moveend', () => drawHexLayer(getHexes(map.getBounds())));
       map.on('click', e => {
         const clickedHex = h3.geoToH3(e.lngLat.lat, e.lngLat.lng, resolution);
         joinVoiceRoom(clickedHex);
-        directions.setDestination([e.lngLat.lng, e.lngLat.lat]);
       });
     });
   </script>
