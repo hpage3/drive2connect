@@ -120,14 +120,15 @@
   height: '100%',
   parentNode: container,
   configOverwrite: {
-    startWithVideoMuted: true,
-    startWithAudioMuted: true,
-    startAudioOnly: true,
-    prejoinPageEnabled: false,
-    enableWelcomePage: false,
-    disableDeepLinking: true,
-    defaultLanguage: 'en'
-  },
+configOverwrite: {
+  startWithVideoMuted: true,
+  startWithAudioMuted: true,
+  startAudioOnly: true,
+  prejoinPageEnabled: false,
+  enableWelcomePage: false, // 👈 THIS is the missing piece
+  disableDeepLinking: true,
+  defaultLanguage: 'en'
+}
   interfaceConfigOverwrite: {
     SHOW_JITSI_WATERMARK: false,
     SHOW_BRAND_WATERMARK: false,
