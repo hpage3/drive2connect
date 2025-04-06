@@ -57,9 +57,17 @@
 
     navigator.geolocation.getCurrentPosition(
       position => {
-        userLatLng = [position.coords.longitude, position.coords.latitude];
+        const rawLat = position.coords.latitude;
+        const rawLng = position.coords.longitude;
+        const zone = h3.geoToH3(rawLat, rawLng, 6);
+        const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
+
+        // Snap to hex center
+        userLatLng = [zoneLng, zoneLat];
+
         map.setCenter(userLatLng);
         new mapboxgl.Marker().setLngLat(userLatLng).addTo(map);
+
         connectBtn.disabled = false;
         connectBtn.innerText = 'Connect';
       },
@@ -78,10 +86,9 @@
         return;
       }
 
-      const rawLat = userLatLng[1];
-      const rawLng = userLatLng[0];
-      const zone = h3.geoToH3(rawLat, rawLng, 6);
-      const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
+      const [lng, lat] = userLatLng;
+      const zone = h3.geoToH3(lat, lng, 6);
+
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
 
       adAudio.onplay = () => console.log('🎵 Ad started playing');
@@ -103,12 +110,17 @@
     function joinVoiceRoom(zoneId) {
       const nickname = generateHandle();
       const returnUrl = encodeURIComponent(window.location.href);
-      const jitsiUrl = `https://fairmeeting.net/roameoroameo_${zoneId}#userInfo.displayName="${nickname}"`;
 
-      // Open Jitsi in a new tab
+      const jitsiUrl = `https://fairmeeting.net/roameoroameo_${zoneId}` +
+        `#userInfo.displayName="${nickname}"` +
+        `&config.startWithVideoMuted=true` +
+        `&config.startAudioOnly=true` +
+        `&config.prejoinPageEnabled=false` +
+        `&config.enableWelcomePage=false` +
+        `&config.defaultLanguage=en`;
+
       const win = window.open(jitsiUrl, '_blank');
 
-      // Try to inject "Return to Map" link if same-origin (optional fallback)
       const returnLinkHTML = `
         <div style="position:absolute;top:10px;right:10px;z-index:10000;">
           <a href="${window.location.href}" style="background:#1db954;color:white;padding:8px 12px;border-radius:8px;text-decoration:none;font-size:14px;">🔙 Return to Map</a>
@@ -116,7 +128,6 @@
       `;
 
       if (win) {
-        // Note: May be blocked by CORS, but worth trying
         win.onload = () => {
           try {
             win.document.body.insertAdjacentHTML('beforeend', returnLinkHTML);
