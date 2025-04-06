@@ -114,29 +114,30 @@
 
       const nickname = generateHandle();
       const domain = "fairmeeting.net";
-      const options = {
-        roomName: `roameoroameo_${zoneId}`,
-        width: '100%',
-        height: '100%',
-        parentNode: container,
-        configOverwrite: {
-          startWithVideoMuted: true,
-          prejoinPageEnabled: false
-          startAudioOnly: true, // optional: if you don’t want video at all
-          disableDeepLinking: true, // stays in browser, doesn't prompt app
-          startWithAudioMuted: true,
-          defaultLanguage: 'en' // Make the default language English 
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_BRAND_WATERMARK: false,
-          DEFAULT_REMOTE_DISPLAY_NAME: nickname,
-          TOOLBAR_BUTTONS: ['microphone', 'hangup']
-        },
-        userInfo: {
-          displayName: nickname
-        }
-      };
+ const options = {
+  roomName: `roameoroameo_${zoneId}`,
+  width: '100%',
+  height: '100%',
+  parentNode: container,
+  configOverwrite: {
+    startWithVideoMuted: true,
+    startWithAudioMuted: true,
+    startAudioOnly: true,
+    prejoinPageEnabled: false,
+    enableWelcomePage: false,
+    disableDeepLinking: true,
+    defaultLanguage: 'en'
+  },
+  interfaceConfigOverwrite: {
+    SHOW_JITSI_WATERMARK: false,
+    SHOW_BRAND_WATERMARK: false,
+    DEFAULT_REMOTE_DISPLAY_NAME: nickname,
+    TOOLBAR_BUTTONS: ['microphone', 'hangup']
+  },
+  userInfo: {
+    displayName: nickname
+  }
+};
 
       const api = new JitsiMeetExternalAPI(domain, options);
     }
