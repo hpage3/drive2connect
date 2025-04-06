@@ -110,13 +110,13 @@
       const nickname = generateHandle();
       const returnUrl = encodeURIComponent(window.location.href);
 
-      const jitsiUrl = `https://fairmeeting.net/roameoroameo_${zoneId}` +
-        `#userInfo.displayName="${nickname}"` +
-        `&config.startWithVideoMuted=true` +
-        `&config.startAudioOnly=true` +
-        `&config.prejoinPageEnabled=false` +
-        `&config.enableWelcomePage=false` +
-        `&config.defaultLanguage=en`;
+    const jitsiUrl = `https://fairmeeting.net/roameoroameo_${zoneId}?lang=en` +
+    `#userInfo.displayName="${nickname}"` +
+    `&config.startWithVideoMuted=true` +
+    `&config.startAudioOnly=true` +
+    `&config.prejoinPageEnabled=false` +
+    `&config.enableWelcomePage=false`;
+
 
       const win = window.open(jitsiUrl, '_blank');
 
