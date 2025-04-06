@@ -90,40 +90,9 @@
       const rawLat = userLatLng[1];
       const rawLng = userLatLng[0];
       const zone = h3.geoToH3(rawLat, rawLng, 6);
-      const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
-
-      console.log('📍 H3 Zone:', zone);
-      console.log('📌 Zone center:', zoneLat, zoneLng);
-
-      // Draw hex boundary on map
-      const hexBoundary = h3.h3ToGeoBoundary(zone, true);
-      const hexCoords = hexBoundary.map(([lat, lng]) => [lng, lat]);
-      hexCoords.push(hexCoords[0]); // close the polygon
-
-      map.on('load', () => {
-  map.addSource('h3-hex', {
-    type: 'geojson',
-    data: {
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [hexCoords]
-      }
-    }
-  });
-
-  map.addLayer({
-    id: 'h3-hex-layer',
-    type: 'line',
-    source: 'h3-hex',
-    paint: {
-      'line-color': '#ff0000',
-      'line-width': 3
-    }
-  });
- });
-
+      const [zoneLat, zoneLng] = h3.h3ToGeo(zone); // Get center of that hex
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
+
       adAudio.onplay = () => console.log('🎵 Ad started playing');
       adAudio.onerror = (e) => console.error('❌ Ad playback error:', e);
       adAudio.onended = () => {
