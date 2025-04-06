@@ -90,7 +90,6 @@
       const rawLat = userLatLng[1];
       const rawLng = userLatLng[0];
       const zone = h3.geoToH3(rawLat, rawLng, 6);
-      const [zoneLat, zoneLng] = h3.h3ToGeo(zone); // Get center of that hex
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
 
       adAudio.onplay = () => console.log('🎵 Ad started playing');
@@ -122,6 +121,7 @@
         configOverwrite: {
           startWithVideoMuted: true,
           prejoinPageEnabled: false
+          defaultLanguage: 'en' // Make English the default language
         },
         interfaceConfigOverwrite: {
           SHOW_JITSI_WATERMARK: false,
