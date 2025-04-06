@@ -56,10 +56,11 @@
     });
 
     const connectBtn = document.getElementById('connectBtn');
-    let userLatLng;
     let userHexId;
+    let actualLatLng;
+    let hexLatLng;
 
-    // Add directions control (empty until location is ready)
+    // Add directions UI (init early)
     const directions = new MapboxDirections({
       accessToken: mapboxgl.accessToken,
       unit: 'metric',
@@ -76,17 +77,18 @@
       position => {
         const rawLat = position.coords.latitude;
         const rawLng = position.coords.longitude;
+
+        actualLatLng = [rawLng, rawLat]; // used for navigation
         const zone = h3.geoToH3(rawLat, rawLng, 6);
         const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
 
-        userLatLng = [zoneLng, zoneLat];
+        hexLatLng = [zoneLng, zoneLat]; // used for chat + map marker
         userHexId = zone;
 
-        map.setCenter(userLatLng);
-        new mapboxgl.Marker().setLngLat(userLatLng).addTo(map);
+        map.setCenter(hexLatLng);
+        new mapboxgl.Marker().setLngLat(hexLatLng).addTo(map);
 
-        // Pre-fill origin in directions plugin
-        directions.setOrigin(userLatLng);
+        directions.setOrigin(actualLatLng); // ✅ actual GPS for routing
 
         connectBtn.disabled = false;
         connectBtn.innerText = 'Connect';
@@ -101,7 +103,7 @@
     );
 
     connectBtn.addEventListener('click', async () => {
-      if (!userLatLng || !userHexId) {
+      if (!actualLatLng || !userHexId) {
         alert("Waiting for location...");
         return;
       }
