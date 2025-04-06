@@ -26,25 +26,16 @@
       background: #888;
       cursor: wait;
     }
-    #jitsi-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: none;
-      z-index: 999;
-    }
   </style>
 </head>
 <body>
   <div id='map'></div>
   <button id="connectBtn" disabled>Getting Location...</button>
-  <div id="jitsi-container"></div>
 
+  <!-- Libraries -->
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
   <script src="https://unpkg.com/h3-js@3.7.2/dist/h3-js.umd.js"></script>
-  <script src='https://fairmeeting.net/external_api.js'></script>
+
   <script>
     mapboxgl.accessToken = 'pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w';
 
@@ -78,7 +69,7 @@
         connectBtn.innerText = "Location Required";
         connectBtn.disabled = true;
       },
-      { timeout: 10000 }
+      { timeout: 10000, enableHighAccuracy: true }
     );
 
     connectBtn.addEventListener('click', async () => {
@@ -90,6 +81,7 @@
       const rawLat = userLatLng[1];
       const rawLng = userLatLng[0];
       const zone = h3.geoToH3(rawLat, rawLng, 6);
+      const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
 
       adAudio.onplay = () => console.log('🎵 Ad started playing');
@@ -99,6 +91,7 @@
         connectBtn.innerText = "Connected";
         connectBtn.disabled = true;
         connectBtn.style.backgroundColor = '#888';
+        alert("🚀 You're being connected to your zone in a new tab. You can return to the map anytime.");
         joinVoiceRoom(zone);
       };
 
@@ -108,33 +101,30 @@
     });
 
     function joinVoiceRoom(zoneId) {
-      const container = document.getElementById('jitsi-container');
-      container.style.display = 'block';
-
       const nickname = generateHandle();
-      const domain = "fairmeeting.net";
-      const options = {
-        roomName: `roameoroameo_${zoneId}`,
-        width: '100%',
-        height: '100%',
-        parentNode: container,
-        configOverwrite: {
-          startWithVideoMuted: true,
-          prejoinPageEnabled: false,
-          defaultLanguage: 'en' // Make English the default language
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_BRAND_WATERMARK: false,
-          DEFAULT_REMOTE_DISPLAY_NAME: nickname,
-          TOOLBAR_BUTTONS: ['microphone', 'hangup']
-        },
-        userInfo: {
-          displayName: nickname
-        }
-      };
+      const returnUrl = encodeURIComponent(window.location.href);
+      const jitsiUrl = `https://fairmeeting.net/roameoroameo_${zoneId}#userInfo.displayName="${nickname}"`;
 
-      const api = new JitsiMeetExternalAPI(domain, options);
+      // Open Jitsi in a new tab
+      const win = window.open(jitsiUrl, '_blank');
+
+      // Try to inject "Return to Map" link if same-origin (optional fallback)
+      const returnLinkHTML = `
+        <div style="position:absolute;top:10px;right:10px;z-index:10000;">
+          <a href="${window.location.href}" style="background:#1db954;color:white;padding:8px 12px;border-radius:8px;text-decoration:none;font-size:14px;">🔙 Return to Map</a>
+        </div>
+      `;
+
+      if (win) {
+        // Note: May be blocked by CORS, but worth trying
+        win.onload = () => {
+          try {
+            win.document.body.insertAdjacentHTML('beforeend', returnLinkHTML);
+          } catch (e) {
+            console.warn('Could not inject return link:', e);
+          }
+        };
+      }
     }
   </script>
 </body>
