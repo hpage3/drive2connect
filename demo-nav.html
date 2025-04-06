@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Roameoroameo – Demo + Navigation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+  <link href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.css' rel='stylesheet' />
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    #message {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      font-size: 14px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div id="message">🧭 Click on a hex to join that room. Navigation starts from your location.</div>
+  <div id='map'></div>
+
+  <!-- Scripts -->
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+  <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.js'></script>
+  <script src="https://unpkg.com/h3-js@3.7.2/dist/h3-js.umd.js"></script>
+  <script src='https://fairmeeting.net/external_api.js'></script>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w';
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [-98.5795, 39.8283],
+      zoom: 3
+    });
+
+    const resolution = 3;
+    let actualLatLng = null;
+    const hexLayerId = 'hexagons';
+
+    const directions = new MapboxDirections({
+      accessToken: mapboxgl.accessToken,
+      unit: 'metric',
+      profile: 'mapbox/walking',
+      controls: {
+        instructions: true,
+        inputs: true,
+        profileSwitcher: true
+      }
+    });
+    map.addControl(directions, 'top-left');
+
+    const generateHandle = () => {
+      const adjectives = ['Fast', 'Lonely', 'Wild', 'Rusty', 'Silver', 'Sleepy', 'Lucky', 'Rough', 'Free', 'Roamin'];
+      const nouns = ['Coyote', 'Mustang', 'Outlaw', 'Wanderer', 'Nomad', 'Hawk', 'Fox', 'Bison', 'Drifter', 'Thunder'];
+      return `${adjectives[Math.floor(Math.random() * adjectives.length)]}-${nouns[Math.floor(Math.random() * nouns.length)]}-${Math.floor(100 + Math.random() * 900)}`;
+    };
+
+    function getHexes(bounds) {
+      const hexes = new Set();
+      const step = 1;
+      for (let lng = bounds.getWest(); lng < bounds.getEast(); lng += step) {
+        for (let lat = bounds.getSouth(); lat < bounds.getNorth(); lat += step) {
+          hexes.add(h3.geoToH3(lat, lng, resolution));
+        }
+      }
+      return Array.from(hexes);
+    }
+
+    function drawHexLayer(hexIds) {
+      const features = hexIds.map(h => {
+        const boundary = h3.h3ToGeoBoundary(h, true);
+        return {
+          type: 'Feature',
+          properties: { hex: h },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[...boundary, boundary[0]]]
+          }
+        };
+      });
+
+      const hexSource = {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: features
+        }
+      };
+
+      if (map.getLayer(hexLayerId)) {
+        map.getSource(hexLayerId).setData(hexSource.data);
+      } else {
+        map.addSource(hexLayerId, { type: 'geojson', data: hexSource.data });
+        map.addLayer({
+          id: hexLayerId,
+          type: 'fill',
+          source: hexLayerId,
+          paint: {
+            'fill-color': '#1db954',
+            'fill-opacity': 0.2,
+            'fill-outline-color': '#1db954'
+          }
+        });
+      }
+    }
+
+    function joinVoiceRoom(zoneId) {
+      const nickname = generateHandle();
+      const jitsiUrl = `https://fairmeeting.net/roameoroameo_${zoneId}?lang=en` +
+        `#userInfo.displayName="${nickname}"` +
+        `&config.startWithVideoMuted=true` +
+        `&config.startAudioOnly=true` +
+        `&config.prejoinPageEnabled=false` +
+        `&config.enableWelcomePage=false`;
+
+      const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
+      adAudio.onended = () => {
+        window.open(jitsiUrl, '_blank');
+      };
+      adAudio.onerror = () => {
+        window.open(jitsiUrl, '_blank');
+      };
+      adAudio.play();
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        actualLatLng = [lng, lat];
+        directions.setOrigin(actualLatLng);
+        new mapboxgl.Marker().setLngLat(actualLatLng).addTo(map);
+      },
+      error => {
+        alert("⚠️ Location access is needed for navigation. Please refresh and allow it.");
+        console.error(error);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+
+    map.on('load', () => {
+      drawHexLayer(getHexes(map.getBounds()));
+
+      map.on('moveend', () => {
+        drawHexLayer(getHexes(map.getBounds()));
+      });
+
+      map.on('click', e => {
+        const clickedHex = h3.geoToH3(e.lngLat.lat, e.lngLat.lng, resolution);
+        joinVoiceRoom(clickedHex);
+        directions.setDestination([e.lngLat.lng, e.lngLat.lat]);
+      });
+    });
+  </script>
+</body>
+</html>
