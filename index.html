@@ -53,6 +53,7 @@
     });
 
     let userLatLng;
+    let userHexId;
     const connectBtn = document.getElementById('connectBtn');
 
     navigator.geolocation.getCurrentPosition(
@@ -64,6 +65,7 @@
 
         // Snap to hex center
         userLatLng = [zoneLng, zoneLat];
+        userHexId = zone;
 
         map.setCenter(userLatLng);
         new mapboxgl.Marker().setLngLat(userLatLng).addTo(map);
@@ -81,13 +83,10 @@
     );
 
     connectBtn.addEventListener('click', async () => {
-      if (!userLatLng) {
+      if (!userLatLng || !userHexId) {
         alert("Waiting for location...");
         return;
       }
-
-      const [lng, lat] = userLatLng;
-      const zone = h3.geoToH3(lat, lng, 6);
 
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
 
@@ -99,7 +98,7 @@
         connectBtn.disabled = true;
         connectBtn.style.backgroundColor = '#888';
         alert("🚀 You're being connected to your zone in a new tab. You can return to the map anytime.");
-        joinVoiceRoom(zone);
+        joinVoiceRoom(userHexId);
       };
 
       connectBtn.innerText = "Playing Ad...";
