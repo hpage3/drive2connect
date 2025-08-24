@@ -18,6 +18,9 @@
   "homepage": "https://github.com/hpage3/drive2connect#readme",
   "description": "",
   "dependencies": {
+	"next": "13.4.19",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "livekit-server-sdk": "^2.13.2"
   },
   "engines": {
