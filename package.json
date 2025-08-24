@@ -19,7 +19,7 @@
   "description": "",
   "dependencies": {
     "livekit-server-sdk": "^2.13.2"
-  }
+  },
   "engines": {
   "node": "18.x"
   }
