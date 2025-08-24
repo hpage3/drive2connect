@@ -28,9 +28,10 @@ export async function GET(req) {
       canSubscribe: true,
     });
 
-    const token = at.toJwt();
+    // ✅ v2 requires await here
+    const jwt = await at.toJwt();
 
-    return new Response(JSON.stringify({ token }), {
+    return new Response(JSON.stringify({ token: jwt }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
