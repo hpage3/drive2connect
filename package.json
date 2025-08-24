@@ -1,0 +1,23 @@
+{
+  "name": "roameoroam",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hpage3/drive2connect.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hpage3/drive2connect/issues"
+  },
+  "homepage": "https://github.com/hpage3/drive2connect#readme",
+  "description": "",
+  "dependencies": {
+    "livekit-server-sdk": "^2.13.2"
+  }
+}
