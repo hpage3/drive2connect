@@ -48,7 +48,7 @@ export default function Home() {
         const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
 
         map.setCenter([zoneLng, zoneLat]);
-        new mapboxgl.Marker().setLngLat([zoneLng, zoneLat]).addTo(map);
+        new mapboxgl.Marker().setLngLat([rawLng, rawLat]).addTo(map);
 
         setConnectDisabled(false);
         setConnectText("Connect");
@@ -112,21 +112,21 @@ export default function Home() {
   function send(type) {
     if (!room) return;
     const payload = new TextEncoder().encode(JSON.stringify({ type }));
-    room.localParticipant.publishData(payload, { topic: "ui", reliable: true });
+    room.localParticipant.publishData(payload, { topic: "ui", reliable: true });setCenter
   }
 
   return (
     <div className="w-full h-screen relative">
       <div id="map" className="absolute inset-0" />
-      <button
-        id="connectBtn"
-        disabled={connectDisabled}
-        onClick={joinVoiceRoom}
-        className="absolute bottom-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl text-white font-medium"
-        style={{ backgroundColor: connectDisabled ? "#888" : "#1db954" }}
-      >
-        {connectText}
-      </button>
+		<button
+			id="connectBtn"
+			disabled={connectDisabled}
+			onClick={joinVoiceRoom}
+			className="absolute bottom-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl text-white font-medium z-50"
+			style={{ backgroundColor: connectDisabled ? "#888" : "#1db954" }}
+		>
+			{connectText}
+		</button>
 
       {overlayVisible && (
         <div id="overlay" className="absolute bottom-5 right-5 flex flex-col gap-2">
