@@ -5,8 +5,7 @@
   <title>Roameoroameo – MVP</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
-  <link href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.css' rel='stylesheet' />
-  <style>
+   <style>
     body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }
     #connectBtn {
@@ -37,7 +36,7 @@
   <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
   <script src="https://unpkg.com/h3-js@3.7.2/dist/h3-js.umd.js"></script>
   <script src='https://fairmeeting.net/external_api.js'></script>
-  <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.js'></script>
+  
 
   <script>
     mapboxgl.accessToken = 'pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w';
@@ -60,18 +59,6 @@
     let actualLatLng;
     let hexLatLng;
 
-    // Add directions UI (init early)
-    const directions = new MapboxDirections({
-      accessToken: mapboxgl.accessToken,
-      unit: 'imperial',
-      profile: 'mapbox/driving',
-      controls: {
-        instructions: false,
-        inputs: true,
-        profileSwitcher: false
-      }
-    });
-    map.addControl(directions, 'top-left');
 
     navigator.geolocation.getCurrentPosition(
       position => {
@@ -87,8 +74,6 @@
 
         map.setCenter(hexLatLng);
         new mapboxgl.Marker().setLngLat(hexLatLng).addTo(map);
-
-        directions.setOrigin(actualLatLng); // ✅ actual GPS for routing
 
         connectBtn.disabled = false;
         connectBtn.innerText = 'Connect';
