@@ -21,7 +21,12 @@ export async function GET(req) {
       name: user,
     });
 
-    at.addGrant({ room, roomJoin: true });
+    at.addGrant({
+      room,
+      roomJoin: true,
+      canPublish: true,
+      canSubscribe: true,
+    });
 
     const token = at.toJwt();
 
