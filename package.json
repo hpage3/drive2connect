@@ -16,8 +16,5 @@
     "url": "https://github.com/hpage3/drive2connect/issues"
   },
   "homepage": "https://github.com/hpage3/drive2connect#readme",
-  "description": "",
-  "dependencies": {
-    "livekit-server-sdk": "^2.13.2"
-  }
+  "description": ""
 }
