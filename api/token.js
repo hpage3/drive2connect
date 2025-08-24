@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { AccessToken } from 'livekit-server-sdk';
 
 export async function GET(req) {
@@ -7,14 +6,20 @@ export async function GET(req) {
   const user = searchParams.get('user');
 
   if (!room || !user) {
-    return NextResponse.json({ error: 'Missing room or user' }, { status: 400 });
+    return new Response(JSON.stringify({ error: 'Missing room or user' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
 
   if (!apiKey || !apiSecret) {
-    return NextResponse.json({ error: 'Missing LiveKit credentials' }, { status: 500 });
+    return new Response(JSON.stringify({ error: 'Missing LiveKit credentials' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   try {
@@ -26,9 +31,16 @@ export async function GET(req) {
     at.addGrant({ room, roomJoin: true });
 
     const token = await at.toJwt();
-    return NextResponse.json({ token });
+
+    return new Response(JSON.stringify({ token }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (err) {
     console.error('Token generation error:', err);
-    return NextResponse.json({ error: 'Token generation failed' }, { status: 500 });
+    return new Response(JSON.stringify({ error: 'Token generation failed' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
