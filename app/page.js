@@ -73,6 +73,9 @@ export default function Home() {
     const roomName = `drive2connect_${zoneId}`;
 
     try {
+		// 🔥 This is where we add the audio file
+      const adAudio = new Audio('/RoameoRoam.mp3');
+      await adAudio.play();
       // 1) Request token
       const resp = await fetch(`${TOKEN_API}?room=${roomName}&user=${nickname}`);
       const data = await resp.json();
