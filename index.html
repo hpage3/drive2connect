@@ -1,56 +1,69 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Drive2Connect – MVP</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
-   <style>
-    body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
+  <style>
+    html, body { margin:0; padding:0; height:100%; font-family: system-ui, sans-serif; }
+    #map { position:absolute; inset:0; }
     #connectBtn {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 12px 24px;
-      font-size: 16px;
-      background: #1db954;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      z-index: 1000;
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      padding: 12px 24px; font-size: 16px; background: #1db954; color: #fff;
+      border: none; border-radius: 10px; cursor: pointer; z-index: 1000;
     }
-    #connectBtn:disabled {
-      background: #888;
-      cursor: wait;
-    }
+    #connectBtn:disabled { background:#888; cursor: wait; }
+
+    /* Voice overlay */
+    #overlay { position:absolute; bottom:20px; right:20px; z-index:1001; display:none; }
+    .stack { display:flex; gap:8px; margin-top:8px; justify-content:flex-end; }
+    .btn { padding:10px 14px; border:0; border-radius:10px; cursor:pointer; background:#111; color:#fff; }
+    .btn.danger { background:#c62828; }
+    #status { color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.6); font-size:12px; margin-top:6px; text-align: right; }
   </style>
 </head>
 <body>
-  <div id='map'></div>
-  <button id="connectBtn" disabled>Getting Location...</button>
+  <div id="map"></div>
+  <button id="connectBtn" disabled>Getting Location…</button>
+
+  <!-- Voice overlay (in-page, not a new tab) -->
+  <div id="overlay">
+    <div class="stack">
+      <button id="ptt" class="btn">Hold to Talk</button>
+      <button id="mute" class="btn">Mute</button>
+    </div>
+    <div class="stack">
+      <button id="like" class="btn">👍</button>
+      <button id="dislike" class="btn">👎</button>
+      <button id="report" class="btn danger">Report</button>
+    </div>
+    <div id="status"></div>
+  </div>
 
   <!-- Scripts -->
-  <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
   <script src="https://unpkg.com/h3-js@3.7.2/dist/h3-js.umd.js"></script>
-  <script src='https://fairmeeting.net/external_api.js'></script>
-  
+  <!-- LiveKit (UMD build) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/livekit-client/2.15.5/livekit-client.umd.js" integrity="sha512-kM6f0sjY1J0Xg0mDQ6T1Y7bqT0m3k0Q4l6+4Q7mJv3k9P8Y7b3mH1rsl3Lk7c+8o5PFY0rKQv6R2kH3fCjv1Yw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <script>
-  // === LiveKit config ===
-    const LK_WS_URL = "wss://<YOUR-LIVEKIT-WS-URL>"; 
-    const TOKEN_API = "https://<your-vercel-project>.vercel.app/api/token";
-	// === Mapbox config ===
+    // === LiveKit config (set these!) ===
+    const LK_WS_URL = "wss://drive2connect-hvmppwa2.livekit.cloud"; // TODO: set this to your LiveKit Cloud WS URL
+    const TOKEN_API = ""; // TODO: set to your Vercel token API (/api/token)
+
+    // === Mapbox config ===
     mapboxgl.accessToken = 'pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w';
 
+    // Anon handle generator
     function generateHandle() {
-      const adjectives = ['Fast', 'Lonely', 'Wild', 'Rusty', 'Silver', 'Sleepy', 'Lucky', 'Rough', 'Free', 'Roamin'];
-      const nouns = ['Coyote', 'Mustang', 'Outlaw', 'Wanderer', 'Nomad', 'Hawk', 'Fox', 'Bison', 'Drifter', 'Thunder'];
-      return `${adjectives[Math.floor(Math.random() * adjectives.length)]}-${nouns[Math.floor(Math.random() * nouns.length)]}-${Math.floor(100 + Math.random() * 900)}`;
+      const adjectives = ['Fast','Lonely','Wild','Rusty','Silver','Sleepy','Lucky','Rough','Free','Roamin'];
+      const nouns = ['Coyote','Mustang','Outlaw','Wanderer','Nomad','Hawk','Fox','Bison','Drifter','Thunder'];
+      return `${adjectives[Math.floor(Math.random()*adjectives.length)]}-${nouns[Math.floor(Math.random()*nouns.length)]}-${Math.floor(100+Math.random()*900)}`;
     }
 
+    // Map init
     const map = new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/mapbox/streets-v11',
@@ -59,88 +72,144 @@
     });
 
     const connectBtn = document.getElementById('connectBtn');
-    let userHexId;
-    let actualLatLng;
-    let hexLatLng;
+    const overlay = document.getElementById('overlay');
+    const pttBtn = document.getElementById('ptt');
+    const muteBtn = document.getElementById('mute');
+    const likeBtn = document.getElementById('like');
+    const dislikeBtn = document.getElementById('dislike');
+    const reportBtn = document.getElementById('report');
+    const statusEl = document.getElementById('status');
 
+    let userHexId, actualLatLng, hexLatLng;
 
+    // Geolocation → center map + marker
     navigator.geolocation.getCurrentPosition(
-      position => {
-        const rawLat = position.coords.latitude;
-        const rawLng = position.coords.longitude;
+      pos => {
+        const rawLat = pos.coords.latitude;
+        const rawLng = pos.coords.longitude;
+        actualLatLng = [rawLng, rawLat];
 
-        actualLatLng = [rawLng, rawLat]; // used for navigation
-        const zone = h3.geoToH3(rawLat, rawLng, 3);
+        const RES = 7; // ~5–10 mile feel; adjust after testing
+        const zone = h3.geoToH3(rawLat, rawLng, RES);
         const [zoneLat, zoneLng] = h3.h3ToGeo(zone);
-
-        hexLatLng = [zoneLng, zoneLat]; // used for chat + map marker
+        hexLatLng = [zoneLng, zoneLat];
         userHexId = zone;
 
         map.setCenter(hexLatLng);
         new mapboxgl.Marker().setLngLat(hexLatLng).addTo(map);
 
         connectBtn.disabled = false;
-        connectBtn.innerText = 'Connect';
+        connectBtn.textContent = 'Connect';
       },
-      error => {
-        console.error("Geolocation error:", error);
-        alert("⚠️ Unable to access your location. Please enable location services and refresh.");
-        connectBtn.innerText = "Location Required";
+      err => {
+        console.error('Geolocation error:', err);
+        alert('⚠️ Unable to access your location. Please enable location services and refresh.');
+        connectBtn.textContent = 'Location Required';
         connectBtn.disabled = true;
       },
       { timeout: 10000, enableHighAccuracy: true }
     );
 
+    // ===== LiveKit state =====
+    const { Room, RoomEvent } = window.LivekitClient;
+    let room = null;
+
+    // Join flow (play ad, then connect to LiveKit)
     connectBtn.addEventListener('click', async () => {
-      if (!actualLatLng || !userHexId) {
-        alert("Waiting for location...");
-        return;
-      }
+      if (!actualLatLng || !userHexId) { alert('Waiting for location…'); return; }
 
       const adAudio = new Audio('https://dl.dropboxusercontent.com/scl/fi/iszlpslm84340x70it13k/RoameoRoam.mp3?rlkey=zx9x9cws377fr6c9vh4ubyehs');
 
-      adAudio.onplay = () => console.log('🎵 Ad started playing');
-      adAudio.onerror = (e) => console.error('❌ Ad playback error:', e);
       adAudio.onended = () => {
-        console.log('✅ Ad finished');
-        connectBtn.innerText = "Connected";
+        connectBtn.textContent = 'Connected';
         connectBtn.disabled = true;
         connectBtn.style.backgroundColor = '#888';
-        alert("🚀 You're being connected to your zone in a new tab. You can return to the map anytime.");
-        joinVoiceRoom(userHexId);
+        joinVoiceRoom(userHexId).catch(e => {
+          console.error(e);
+          alert('Voice connection failed. See console for details.');
+          connectBtn.textContent = 'Connect';
+          connectBtn.disabled = false;
+          connectBtn.style.backgroundColor = '#1db954';
+        });
       };
 
-      connectBtn.innerText = "Playing Ad...";
+      connectBtn.textContent = 'Playing Ad…';
       connectBtn.disabled = true;
-      adAudio.play();
+      adAudio.play().catch(() => {
+        // If autoplay fails, just proceed to join
+        joinVoiceRoom(userHexId);
+      });
     });
 
-    function joinVoiceRoom(zoneId) {
-      const nickname = generateHandle();
-      const jitsiUrl = `https://fairmeeting.net/roameoroameo_${zoneId}?lang=en` +
-        `#userInfo.displayName="${nickname}"` +
-        `&config.startWithVideoMuted=true` +
-        `&config.startAudioOnly=true` +
-        `&config.prejoinPageEnabled=false` +
-        `&config.enableWelcomePage=false`;
+    async function joinVoiceRoom(zoneId) {
+      const nickname = encodeURIComponent(generateHandle());
+      const roomName = `drive2connect_${zoneId}`;
 
-      const win = window.open(jitsiUrl, '_blank');
+      // 1) Get short-lived token from your Vercel API
+      const resp = await fetch(`${TOKEN_API}?room=${roomName}&user=${nickname}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await resp.json();
+      if (!data.token) throw new Error('Token API error: ' + JSON.stringify(data));
 
-      const returnLinkHTML = `
-        <div style="position:absolute;top:10px;right:10px;z-index:10000;">
-          <a href="${window.location.href}" style="background:#1db954;color:white;padding:8px 12px;border-radius:8px;text-decoration:none;font-size:14px;">🔙 Return to Map</a>
-        </div>
-      `;
+      // 2) Connect to LiveKit
+      room = new Room(); // defaults are fine for audio rooms
+      await room.connect(LK_WS_URL, data.token);
+      console.log('Connected to room:', room.name);
 
-      if (win) {
-        win.onload = () => {
-          try {
-            win.document.body.insertAdjacentHTML('beforeend', returnLinkHTML);
-          } catch (e) {
-            console.warn('Could not inject return link:', e);
-          }
-        };
+      // Start muted; use PTT to speak
+      await room.localParticipant.setMicrophoneEnabled(false);
+
+      // 3) Play remote audio
+      room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        if (track.kind === 'audio') {
+          const el = track.attach();
+          el.autoplay = true;
+          el.playsInline = true;
+          el.style.display = 'none';
+          document.body.appendChild(el);
+        }
+      });
+      room.on(RoomEvent.TrackUnsubscribed, (track) => {
+        track.detach().forEach(el => el.remove());
+      });
+
+      // 4) Data messages (reactions/report)
+      room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+        try {
+          const msg = JSON.parse(new TextDecoder().decode(payload));
+          console.log('Data from', participant?.identity, topic, msg);
+        } catch {}
+      });
+
+      // 5) Show overlay + wire controls
+      overlay.style.display = 'block';
+      statusEl.textContent = `Room: ${roomName}  |  You: ${decodeURIComponent(nickname)}`;
+
+      // Push-to-talk (mouse + touch)
+      const pressPTT = () => room?.localParticipant.setMicrophoneEnabled(true);
+      const releasePTT = () => room?.localParticipant.setMicrophoneEnabled(false);
+
+      pttBtn.addEventListener('mousedown', pressPTT);
+      pttBtn.addEventListener('mouseup', releasePTT);
+      pttBtn.addEventListener('mouseleave', releasePTT);
+      pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pressPTT(); }, { passive:false });
+      pttBtn.addEventListener('touchend',   (e) => { e.preventDefault(); releasePTT(); }, { passive:false });
+
+      muteBtn.addEventListener('click', () => room?.localParticipant.setMicrophoneEnabled(false));
+
+      function send(type) {
+        if (!room) return;
+        const payload = new TextEncoder().encode(JSON.stringify({ type }));
+        room.localParticipant.publishData(payload, { topic: 'ui', reliable: true });
       }
+      likeBtn.addEventListener('click', () => send('like'));
+      dislikeBtn.addEventListener('click', () => send('dislike'));
+      reportBtn.addEventListener('click', () => send('report'));
+
+      // Clean up on unload
+      window.addEventListener('beforeunload', () => { try { room.disconnect(); } catch {} });
     }
   </script>
 </body>
