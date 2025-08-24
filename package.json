@@ -1,29 +1,19 @@
 {
-  "name": "roameoroam",
+  "name": "drive2connect",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hpage3/drive2connect.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/hpage3/drive2connect/issues"
-  },
-  "homepage": "https://github.com/hpage3/drive2connect#readme",
-  "description": "",
   "dependencies": {
-	"next": "13.4.19",
+    "h3-js": "^3.7.2",
+    "livekit-client": "^2.15.5",
+    "livekit-server-sdk": "^1.7.0",
+    "mapbox-gl": "^2.14.1",
+    "next": "13.5.6",
     "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "livekit-server-sdk": "^2.13.2"
-  },
-  "engines": {
-  "node": "18.x"
+    "react-dom": "18.2.0"
   }
 }
