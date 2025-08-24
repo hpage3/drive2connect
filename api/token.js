@@ -13,12 +13,22 @@ export async function GET(req) {
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
 
-  const at = new AccessToken(apiKey, apiSecret, {
-    identity: user,
-    name: user,
-  });
-  at.addGrant({ room, roomJoin: true });
+  if (!apiKey || !apiSecret) {
+    return NextResponse.json({ error: 'Missing LiveKit credentials' }, { status: 500 });
+  }
 
-  const token = await at.toJwt();
-  return NextResponse.json({ token });
+  try {
+    const at = new AccessToken(apiKey, apiSecret, {
+      identity: user,
+      name: user,
+    });
+
+    at.addGrant({ room, roomJoin: true });
+
+    const token = await at.toJwt();
+    return NextResponse.json({ token });
+  } catch (err) {
+    console.error('Token generation error:', err);
+    return NextResponse.json({ error: 'Token generation failed' }, { status: 500 });
+  }
 }
