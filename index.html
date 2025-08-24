@@ -63,12 +63,12 @@
     // Add directions UI (init early)
     const directions = new MapboxDirections({
       accessToken: mapboxgl.accessToken,
-      unit: 'metric',
-      profile: 'mapbox/walking',
+      unit: 'imperial',
+      profile: 'mapbox/driving',
       controls: {
-        instructions: true,
+        instructions: false,
         inputs: true,
-        profileSwitcher: true
+        profileSwitcher: flase
       }
     });
     map.addControl(directions, 'top-left');
