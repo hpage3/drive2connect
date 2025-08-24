@@ -5,13 +5,6 @@ export async function GET(req) {
   const room = searchParams.get('room');
   const user = searchParams.get('user');
 
-  if (!room || !user) {
-    return new Response(JSON.stringify({ error: 'Missing room or user' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
 
@@ -30,7 +23,7 @@ export async function GET(req) {
 
     at.addGrant({ room, roomJoin: true });
 
-    const token = await at.toJwt();
+    const token = at.toJwt();
 
     return new Response(JSON.stringify({ token }), {
       status: 200,
