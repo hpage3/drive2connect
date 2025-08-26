@@ -24,8 +24,14 @@ export function useVoiceRoom(LK_WS_URL) {
       const data = await res.json();
       if (!data.token) throw new Error("No token returned");
 
-      const newRoom = new Room();
-      await newRoom.connect(LK_WS_URL, data.token);
+	  try {
+		const newRoom = new Room();
+		await newRoom.connect(LK_WS_URL, data.token);
+		console.log("✅ Connected to LiveKit room");
+	  } catch (err) {
+      console.error("❌ LiveKit connect failed:", err);
+      setStatus("Voice connection failed: " + err.message);
+	  }
 
       const micTrack = await createLocalAudioTrack();
       await newRoom.localParticipant.publishTrack(micTrack);
