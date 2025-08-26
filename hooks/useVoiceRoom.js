@@ -22,7 +22,7 @@ export function useVoiceRoom(LK_WS_URL) {
       // ✅ Request token and room assignment
       const res = await fetch(`${tokenApi}?user=${handle}`);
       const data = await res.json();
-      if (!data.token || !data.room) throw new Error("No token or room returned");
+      if (!data.token) throw new Error("No token returned");
 
       const newRoom = new Room();
       await newRoom.connect(LK_WS_URL, data.token);
