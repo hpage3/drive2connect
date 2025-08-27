@@ -14,38 +14,52 @@ export function useVoiceRoom(LK_WS_URL) {
     return `${adjectives[Math.floor(Math.random() * adjectives.length)]}-${nouns[Math.floor(Math.random() * nouns.length)]}`;
   }
 
-  async function join(tokenApi) {
-    try {
-      const handle = generateHandle();
-      setUsername(handle);
+async function join(tokenApi) {
+  let newRoom; // ✅ declare it so it's visible everywhere
+  try {
+    const handle = generateHandle();
+    setUsername(handle);
 
-      // ✅ Request token and room assignment
-      const res = await fetch(`${tokenApi}?user=${handle}`);
-      const data = await res.json();
-      if (!data.token) throw new Error("No token returned");
+    // ✅ Request token
+    const res = await fetch(`${tokenApi}?user=${handle}`);
+    const data = await res.json();
+    if (!data.token) throw new Error("No token returned");
 
-	  try {
-		const newRoom = new Room();
-		await newRoom.connect(LK_WS_URL, data.token);
-		console.log("✅ Connected to LiveKit room");
-	  } catch (err) {
-      console.error("❌ LiveKit connect failed:", err);
-      setStatus("Voice connection failed: " + err.message);
-	  }
+    // ✅ Connect to LiveKit
+    newRoom = new Room();
+    await newRoom.connect(LK_WS_URL, data.token);
+    console.log("✅ Connected to LiveKit room");
 
-      const micTrack = await createLocalAudioTrack();
-      await newRoom.localParticipant.publishTrack(micTrack);
-      setIsMuted(false);
+    // ✅ Publish microphone
+    const micTrack = await createLocalAudioTrack();
+    await newRoom.localParticipant.publishTrack(micTrack);
+    setIsMuted(false);
 
-      setRoom(newRoom);
+    // ✅ Handle remote audio
+    newRoom.on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === "audio") {
+        const audioEl = track.attach();
+        audioEl.autoplay = true;
+        audioEl.playsInline = true;
+        audioEl.style.display = "none";
+        document.body.appendChild(audioEl);
+      }
+    });
+    newRoom.on(RoomEvent.TrackUnsubscribed, (track) => {
+      track.detach().forEach((el) => el.remove());
+    });
 
-      const adAudio = new Audio("/RoameoRoam.mp3");
-      adAudio.play();
-    } catch (err) {
-      console.error("Voice connection failed:", err);
-      setStatus("Voice connection failed");
-    }
+    setRoom(newRoom);
+
+    // (Optional: ad playback stays here if you want)
+    const adAudio = new Audio("/RoameoRoam.mp3");
+    adAudio.play();
+
+  } catch (err) {
+    console.error("❌ Voice connection failed:", err);
+    setStatus("Voice connection failed: " + err.message);
   }
+}
 
   function leave() {
     if (room) {
