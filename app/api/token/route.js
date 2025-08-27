@@ -2,7 +2,6 @@ import { AccessToken } from 'livekit-server-sdk';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const room = searchParams.get('room');
   const user = searchParams.get('user');
 
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -22,19 +21,21 @@ export async function GET(req) {
     });
 
     at.addGrant({
-      room,
+      room: "testroom",   // ✅ Hardcoded single-room
       roomJoin: true,
       canPublish: true,
       canSubscribe: true,
     });
 
-    // ✅ v2 requires await here
     const jwt = await at.toJwt();
 
-    return new Response(JSON.stringify({ token: jwt }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ token: jwt, room: "testroom" }), // ✅ return room too
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   } catch (err) {
     console.error('Token generation error:', err);
     return new Response(JSON.stringify({ error: 'Token generation failed' }), {
