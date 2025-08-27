@@ -60,9 +60,16 @@ export default function Home() {
         <AdPlayer
           src="/RoameoRoam.mp3"
           onEnded={async () => {
-            setShowAd(false);
-            await join(TOKEN_API);
-            setConnectText("Connected");
+            try {
+              await join(TOKEN_API);
+              setConnectText("Connected");
+            } catch (err) {
+              console.error("Join failed after ad:", err);
+              setConnectDisabled(false);
+              setConnectText("Connect");
+            } finally {
+              setShowAd(false); // ✅ Always reset, success or fail
+            }
           }}
         />
       )}
