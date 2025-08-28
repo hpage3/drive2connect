@@ -5,16 +5,15 @@ import {
   disconnectRoom,
   toggleMute,
   sendReaction,
-  stopMicTracks, // ✅ make sure this is in lib/voice/room.js
+  stopMicTracks,   // ✅ mic shutoff helper
 } from "./lib/voice/room";
 import { initMap } from "./lib/map/map";
-import UserBadge from "./components/UserBadge";
 import Controls from "./components/Controls";
 import Status from "./components/Status";
 import { RoomEvent } from "livekit-client";
 
 export default function Home() {
-  const [roomName] = useState("lobby"); // one shared room for now
+  const [roomName] = useState("lobby");
   const [room, setRoom] = useState(null);
   const [username, setUsername] = useState("");
   const [participants, setParticipants] = useState([]);
@@ -29,22 +28,21 @@ export default function Home() {
   // --- Audio helper
   function playAudio(src) {
     const audio = new Audio(src);
-    audio.play()
+    audio
+      .play()
       .then(() => console.log("▶️ Playing:", src))
       .catch((err) => console.error("❌ Audio play failed:", src, err));
   }
 
-  // --- Manage Participants (dedupe, exclude self)
+  // --- Manage Participants (de-dupe by identity)
   function addParticipant(p) {
     setParticipants((prev) => {
-      if (!p || !p.identity || p.identity === username) return prev;
       const updated = [...prev, p];
       return Array.from(new Map(updated.map((u) => [u.identity, u])).values());
     });
   }
 
   function removeParticipant(p) {
-    if (!p || !p.identity) return;
     setParticipants((prev) => prev.filter((x) => x.identity !== p.identity));
   }
 
@@ -57,7 +55,7 @@ export default function Home() {
     warningTimer.current = setTimeout(() => {
       console.log("⚠️ Reshuffle warning fired");
       playAudio("/Reshuffle.mp3");
-      setStatus("You’ll be moved to a new channel in 30s…");
+      // setStatus("You’ll be moved to a new channel in 30s…"); // 🔇 status msg disabled
     }, 30 * 1000);
 
     console.log("⏳ Scheduling reshuffle at 60s");
@@ -82,12 +80,9 @@ export default function Home() {
 
           console.log("✅ Connected as", handle);
 
-          // Initialize participants (exclude self)
+          // Init participants
           if (newRoom && newRoom.participants) {
-            const list = [...newRoom.participants.values()].filter(
-              (p) => p.identity !== handle
-            );
-            setParticipants(list);
+            setParticipants([...newRoom.participants.values()]);
           } else {
             setParticipants([]);
           }
@@ -102,15 +97,19 @@ export default function Home() {
             removeParticipant(p);
           });
 
-          // Start reshuffle timers
           scheduleReshuffle();
-
-          // Initial ad
           playAudio("/RoameoRoam.mp3");
         },
         onDisconnected: () => {
           console.log("❌ Disconnected");
-          cleanupRoom();
+          stopMicTracks(room);   // ✅ release mic
+          if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+          if (warningTimer.current) clearTimeout(warningTimer.current);
+          setRoom(null);
+          setParticipants([]);
+          setConnectText("Connect");
+          setConnectDisabled(false);
+          setIsMuted(false);
         },
       });
     } catch (err) {
@@ -124,16 +123,10 @@ export default function Home() {
   // --- Disconnect Room ---
   function handleDisconnect() {
     console.log("👋 Manual disconnect");
-    cleanupRoom();
-  }
-
-  function cleanupRoom() {
+    stopMicTracks(room);   // ✅ release mic
     if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
     if (warningTimer.current) clearTimeout(warningTimer.current);
-    if (room) {
-      disconnectRoom(room);
-      stopMicTracks(room); // ✅ ensure mic released
-    }
+    disconnectRoom(room);
     setRoom(null);
     setParticipants([]);
     setConnectDisabled(false);
@@ -145,11 +138,9 @@ export default function Home() {
   async function handleReshuffle() {
     console.log("🔄 Performing reshuffle…");
     try {
-      if (room) {
-        disconnectRoom(room);
-        stopMicTracks(room);
-      }
-      await new Promise((r) => setTimeout(r, 1000)); // ✅ slightly longer delay
+      stopMicTracks(room);   // ✅ release mic before reshuffle
+      disconnectRoom(room);
+      await new Promise((r) => setTimeout(r, 1000)); // small delay
 
       playAudio("/RoameoRoam.mp3");
 
@@ -165,12 +156,8 @@ export default function Home() {
           setIsMuted(false);
           setStatus("");
 
-          // Initialize participants (exclude self)
           if (newRoom && newRoom.participants) {
-            const list = [...newRoom.participants.values()].filter(
-              (p) => p.identity !== handle
-            );
-            setParticipants(list);
+            setParticipants([...newRoom.participants.values()]);
           } else {
             setParticipants([]);
           }
@@ -189,7 +176,12 @@ export default function Home() {
         },
         onDisconnected: () => {
           console.log("❌ Disconnected after reshuffle");
-          cleanupRoom();
+          stopMicTracks(room);   // ✅ release mic
+          setRoom(null);
+          setParticipants([]);
+          setConnectText("Connect");
+          setConnectDisabled(false);
+          setIsMuted(false);
         },
       });
     } catch (err) {
@@ -213,7 +205,7 @@ export default function Home() {
 
   // --- Map Init ---
   useEffect(() => {
-    initMap(() => {
+    initMap("map", () => {
       setConnectDisabled(false);
       setConnectText("Connect");
     });
