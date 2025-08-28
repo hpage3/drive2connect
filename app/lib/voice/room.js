@@ -15,7 +15,7 @@ export async function joinRoom({ roomName, username, onConnected, onDisconnected
   const micTrack = await createLocalAudioTrack();
   await room.localParticipant.publishTrack(micTrack);
 
-  // Remote audio handling
+  // Attach remote audio
   room.on(RoomEvent.TrackSubscribed, (track) => {
     if (track.kind === "audio") {
       const el = track.attach();
@@ -40,7 +40,10 @@ export async function joinRoom({ roomName, username, onConnected, onDisconnected
 }
 
 export function disconnectRoom(room) {
-  if (room) room.disconnect();
+  if (room) {
+    stopMicTracks(room); // ✅ shut off mic before leaving
+    room.disconnect();
+  }
 }
 
 export async function toggleMute(room, isMuted) {
@@ -50,6 +53,25 @@ export async function toggleMute(room, isMuted) {
 export function sendReaction(room, type) {
   const payload = new TextEncoder().encode(JSON.stringify({ type }));
   room.localParticipant.publishData(payload, { topic: "ui", reliable: true });
+}
+
+// ✅ NEW: stop and release microphone tracks
+export function stopMicTracks(room) {
+  if (!room) return;
+  const lp = room.localParticipant;
+  if (!lp) return;
+
+  lp.tracks.forEach((pub) => {
+    const track = pub.track;
+    if (track && track.mediaStreamTrack) {
+      try {
+        track.mediaStreamTrack.stop();
+        console.log("🎤 Mic track stopped");
+      } catch (err) {
+        console.warn("⚠️ Error stopping mic track", err);
+      }
+    }
+  });
 }
 
 function generateHandle() {
