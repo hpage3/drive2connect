@@ -28,7 +28,41 @@ export default function Home() {
       .catch(err => console.error("❌ Audio play failed:", src, err));
   }
 
-  // --- Manage Participants (de-dupe by identity)
+  // --- Safely stop mic tracks
+  function stopMicTracks(activeRoom) {
+    if (!activeRoom || !activeRoom.localParticipant) return;
+
+    const pubs = activeRoom.localParticipant.tracks;
+    if (!pubs) return;
+
+    pubs.forEach((pub) => {
+      try {
+        pub.track?.stop();  // release hardware
+      } catch (err) {
+        console.warn("⚠️ Failed to stop track:", err);
+      }
+    });
+  }
+
+  // --- Manage Participants
+  function initParticipants(newRoom) {
+    let initial = [];
+    if (newRoom) {
+      if (newRoom.localParticipant) {
+        initial.push(newRoom.localParticipant);
+      }
+      if (newRoom.participants && typeof newRoom.participants.values === "function") {
+        const remotes = [...newRoom.participants.values()].filter(
+          (p) => p.identity !== newRoom.localParticipant?.identity
+        );
+        initial.push(...remotes);
+      }
+    }
+    // Deduplicate
+    const unique = Array.from(new Map(initial.map(u => [u.identity, u])).values());
+    setParticipants(unique);
+  }
+
   function addParticipant(p) {
     setParticipants((prev) => {
       const updated = [...prev, p];
@@ -57,27 +91,6 @@ export default function Home() {
       console.log("🔄 Reshuffle triggered");
       handleReshuffle();
     }, 60 * 1000);
-  }
-
-  // --- Safely stop mic tracks
-  function stopMicTracks(activeRoom) {
-    activeRoom?.localParticipant?.tracks.forEach((pub) => {
-      pub.track?.stop();
-    });
-  }
-
-  // --- Safe init of participants
-  function initParticipants(newRoom) {
-    let initial = [];
-    if (newRoom) {
-      if (newRoom.localParticipant) {
-        initial.push(newRoom.localParticipant);
-      }
-      if (newRoom.participants && typeof newRoom.participants.values === "function") {
-        initial = [...initial, ...newRoom.participants.values()];
-      }
-    }
-    setParticipants(initial);
   }
 
   // --- Join Room ---
@@ -169,7 +182,8 @@ export default function Home() {
         disconnectRoom(room);
       }
 
-      await new Promise(r => setTimeout(r, 1000)); // give WebRTC time to release
+      // ⏳ bump delay for stability
+      await new Promise(r => setTimeout(r, 2000));
 
       playAudio("/RoameoRoam.mp3");
 
