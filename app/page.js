@@ -66,12 +66,26 @@ export default function Home() {
     });
   }
 
+  // --- Safe init of participants
+  function initParticipants(newRoom) {
+    let initial = [];
+    if (newRoom) {
+      if (newRoom.localParticipant) {
+        initial.push(newRoom.localParticipant);
+      }
+      if (newRoom.participants && typeof newRoom.participants.values === "function") {
+        initial = [...initial, ...newRoom.participants.values()];
+      }
+    }
+    setParticipants(initial);
+  }
+
   // --- Join Room ---
   async function handleJoin() {
     try {
       await joinRoom({
         roomName,
-        username: usernameRef.current || undefined, // ✅ use persistent handle
+        username: usernameRef.current || undefined,
         onConnected: (newRoom, handle) => {
           setRoom(newRoom);
 
@@ -89,13 +103,7 @@ export default function Home() {
 
           console.log("✅ Connected as", usernameRef.current);
 
-          // Init participants (include self + others)
-          if (newRoom) {
-            const initial = [newRoom.localParticipant, ...newRoom.participants.values()];
-            setParticipants(initial);
-          } else {
-            setParticipants([]);
-          }
+          initParticipants(newRoom);
 
           newRoom.on(RoomEvent.ParticipantConnected, (p) => {
             console.log("👥 Participant joined:", p.identity);
@@ -167,7 +175,7 @@ export default function Home() {
 
       await joinRoom({
         roomName,
-        username: usernameRef.current, // ✅ always reuse
+        username: usernameRef.current,
         onConnected: (newRoom) => {
           console.log("✅ Reconnected after reshuffle as", usernameRef.current);
           setRoom(newRoom);
@@ -177,13 +185,7 @@ export default function Home() {
           setIsMuted(false);
           setStatus("");
 
-          // Init participants (include self + others)
-          if (newRoom) {
-            const initial = [newRoom.localParticipant, ...newRoom.participants.values()];
-            setParticipants(initial);
-          } else {
-            setParticipants([]);
-          }
+          initParticipants(newRoom);
 
           newRoom.on(RoomEvent.ParticipantConnected, (p) => {
             console.log("👥 Participant joined:", p.identity);
