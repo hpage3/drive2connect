@@ -65,33 +65,38 @@ export default function Home() {
   }
 
   // --- Reshuffle (every 60s for testing) ---
-  async function handleReshuffle() {
-    console.log("🔄 Reshuffling room...");
+async function handleReshuffle() {
+  console.log("🔄 Performing reshuffle…");
+  try {
     disconnectRoom(room);
 
-    // Play reshuffle ad
-    const adAudio = new Audio("/RoameoRoam.mp3");
-    adAudio.play();
+    playAudio("/RoameoRoam.mp3");
 
-    // Reconnect (currently same "lobby" room, keep handle)
     await joinRoom({
       roomName,
-	  username,
+      username, // keep same handle
       onConnected: (newRoom, handle) => {
+        console.log("✅ Reconnected after reshuffle as", handle);
         setRoom(newRoom);
         setUsername(handle);
         setConnectText("Connected");
         setConnectDisabled(true);
         setIsMuted(false);
+        setStatus(""); // clear warning
       },
       onDisconnected: () => {
+        console.log("❌ Disconnected after reshuffle");
         setRoom(null);
         setConnectText("Connect");
         setConnectDisabled(false);
         setIsMuted(false);
       },
     });
+  } catch (err) {
+    console.error("❌ Reshuffle failed:", err);
+    setStatus("Reshuffle failed");
   }
+}
 
   // --- Toggle Mute ---
   async function handleMuteToggle() {
