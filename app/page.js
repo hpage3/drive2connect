@@ -59,6 +59,13 @@ export default function Home() {
     }, 60 * 1000);
   }
 
+  // --- Safely stop mic tracks
+  function stopMicTracks(activeRoom) {
+    activeRoom?.localParticipant?.tracks.forEach((pub) => {
+      pub.track?.stop();
+    });
+  }
+
   // --- Join Room ---
   async function handleJoin() {
     try {
@@ -82,9 +89,10 @@ export default function Home() {
 
           console.log("✅ Connected as", usernameRef.current);
 
-          // Init participants safely
-          if (newRoom && newRoom.participants) {
-            setParticipants([...newRoom.participants.values()]);
+          // Init participants (include self + others)
+          if (newRoom) {
+            const initial = [newRoom.localParticipant, ...newRoom.participants.values()];
+            setParticipants(initial);
           } else {
             setParticipants([]);
           }
@@ -109,6 +117,8 @@ export default function Home() {
           console.log("❌ Disconnected");
           if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
           if (warningTimer.current) clearTimeout(warningTimer.current);
+
+          stopMicTracks(room);
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
@@ -129,7 +139,12 @@ export default function Home() {
     console.log("👋 Manual disconnect");
     if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
     if (warningTimer.current) clearTimeout(warningTimer.current);
-    disconnectRoom(room);
+
+    if (room) {
+      stopMicTracks(room);
+      disconnectRoom(room);
+    }
+
     setRoom(null);
     setParticipants([]);
     setConnectDisabled(false);
@@ -141,8 +156,12 @@ export default function Home() {
   async function handleReshuffle() {
     console.log("🔄 Performing reshuffle…");
     try {
-      disconnectRoom(room);
-      await new Promise(r => setTimeout(r, 500)); // small delay
+      if (room) {
+        stopMicTracks(room);
+        disconnectRoom(room);
+      }
+
+      await new Promise(r => setTimeout(r, 1000)); // give WebRTC time to release
 
       playAudio("/RoameoRoam.mp3");
 
@@ -158,9 +177,10 @@ export default function Home() {
           setIsMuted(false);
           setStatus("");
 
-          // Init participants
-          if (newRoom && newRoom.participants) {
-            setParticipants([...newRoom.participants.values()]);
+          // Init participants (include self + others)
+          if (newRoom) {
+            const initial = [newRoom.localParticipant, ...newRoom.participants.values()];
+            setParticipants(initial);
           } else {
             setParticipants([]);
           }
@@ -180,6 +200,7 @@ export default function Home() {
         },
         onDisconnected: () => {
           console.log("❌ Disconnected after reshuffle");
+          stopMicTracks(room);
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
