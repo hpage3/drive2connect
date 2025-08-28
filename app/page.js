@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { joinRoom, disconnectRoom, toggleMute, sendReaction } from "./lib/voice/room";
 import { initMap } from "./lib/map/map";
 import UserBadge from "./components/UserBadge";
@@ -7,14 +7,21 @@ import Controls from "./components/Controls";
 import Status from "./components/Status";
 
 export default function Home() {
-  const [roomName, setRoomName] = useState("lobby");   // dynamic room name (currently one room)
+  const [roomName] = useState("lobby");   // dynamic room name (currently one room)
   const [room, setRoom] = useState(null);
   const [username, setUsername] = useState("");
   const [isMuted, setIsMuted] = useState(false);
   const [connectDisabled, setConnectDisabled] = useState(true);
   const [connectText, setConnectText] = useState("Getting Location…");
   const [status, setStatus] = useState("");
-  const [reshuffleTimer, setReshuffleTimer] = useState(null);
+
+  const reshuffleTimer = useRef(null);
+  const warningTimer = useRef(null);
+
+  function playAudio(src) {
+    const audio = new Audio(src);
+    audio.play().catch(() => console.warn("Autoplay blocked:", src));
+  }
 
   // --- Join Room ---
   async function handleJoin() {
@@ -28,27 +35,40 @@ export default function Home() {
           setConnectDisabled(true);
           setIsMuted(false);
 
-		  console.log("✅ Connected as", handle);
+          console.log("✅ Connected as", handle);
 
-		  // Clear old timers
-		  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
-		  if (warningTimer.current) clearTimeout(warningTimer.current);
+          // Clear old timers
+          if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+          if (warningTimer.current) clearTimeout(warningTimer.current);
 
-		  // Explicit logs
-		  console.log("⏳ Scheduling reshuffle warning at 30s");
-		  warningTimer.current = setTimeout(() => {
-		  console.log("⚠️ Reshuffle warning fired");
-		  playAudio("/RoameoRoam.mp3"); // reuse your existing ad
-		  setStatus("You’ll be moved to a new channel in 30s…");
-		}, 30 * 1000);
+          // Schedule warning
+          console.log("⏳ Scheduling reshuffle warning at 30s");
+          warningTimer.current = setTimeout(() => {
+            console.log("⚠️ Reshuffle warning fired");
+            playAudio("/RoameoRoam.mp3"); // reuse existing file for now
+            setStatus("You’ll be moved to a new channel in 30s…");
+          }, 30 * 1000);
 
-		console.log("⏳ Scheduling reshuffle at 60s");
-		reshuffleTimer.current = setTimeout(() => {
-		  console.log("🔄 Reshuffle triggered");
-		  handleReshuffle();
-		}, 60 * 1000);
+          // Schedule reshuffle
+          console.log("⏳ Scheduling reshuffle at 60s");
+          reshuffleTimer.current = setTimeout(() => {
+            console.log("🔄 Reshuffle triggered");
+            handleReshuffle();
+          }, 60 * 1000);
 
-		playAudio("/RoameoRoam.mp3");
+          // Initial ad
+          playAudio("/RoameoRoam.mp3");
+        },
+        onDisconnected: () => {
+          console.log("❌ Disconnected");
+          if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+          if (warningTimer.current) clearTimeout(warningTimer.current);
+          setRoom(null);
+          setConnectText("Connect");
+          setConnectDisabled(false);
+          setIsMuted(false);
+        },
+      });
     } catch (err) {
       console.error("Voice connection failed:", err);
       setStatus("Voice connection failed");
@@ -59,7 +79,9 @@ export default function Home() {
 
   // --- Disconnect Room ---
   function handleDisconnect() {
-    if (reshuffleTimer) clearInterval(reshuffleTimer);
+    console.log("👋 Manual disconnect");
+    if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+    if (warningTimer.current) clearTimeout(warningTimer.current);
     disconnectRoom(room);
     setRoom(null);
     setConnectDisabled(false);
@@ -67,39 +89,40 @@ export default function Home() {
     setIsMuted(false);
   }
 
-  // --- Reshuffle (every 60s for testing) ---
-async function handleReshuffle() {
-  console.log("🔄 Performing reshuffle…");
-  try {
-    disconnectRoom(room);
+  // --- Reshuffle ---
+  async function handleReshuffle() {
+    console.log("🔄 Performing reshuffle…");
+    try {
+      disconnectRoom(room);
+      await new Promise(r => setTimeout(r, 500)); // short delay
 
-    playAudio("/RoameoRoam.mp3");
+      playAudio("/RoameoRoam.mp3");
 
-    await joinRoom({
-      roomName,
-      username, // keep same handle
-      onConnected: (newRoom, handle) => {
-        console.log("✅ Reconnected after reshuffle as", handle);
-        setRoom(newRoom);
-        setUsername(handle);
-        setConnectText("Connected");
-        setConnectDisabled(true);
-        setIsMuted(false);
-        setStatus(""); // clear warning
-      },
-      onDisconnected: () => {
-        console.log("❌ Disconnected after reshuffle");
-        setRoom(null);
-        setConnectText("Connect");
-        setConnectDisabled(false);
-        setIsMuted(false);
-      },
-    });
-  } catch (err) {
-    console.error("❌ Reshuffle failed:", err);
-    setStatus("Reshuffle failed");
+      await joinRoom({
+        roomName,
+        username, // keep same handle
+        onConnected: (newRoom, handle) => {
+          console.log("✅ Reconnected after reshuffle as", handle);
+          setRoom(newRoom);
+          setUsername(handle);
+          setConnectText("Connected");
+          setConnectDisabled(true);
+          setIsMuted(false);
+          setStatus("");
+        },
+        onDisconnected: () => {
+          console.log("❌ Disconnected after reshuffle");
+          setRoom(null);
+          setConnectText("Connect");
+          setConnectDisabled(false);
+          setIsMuted(false);
+        },
+      });
+    } catch (err) {
+      console.error("❌ Reshuffle failed:", err);
+      setStatus("Reshuffle failed");
+    }
   }
-}
 
   // --- Toggle Mute ---
   async function handleMuteToggle() {
@@ -126,10 +149,8 @@ async function handleReshuffle() {
     <div className="relative w-full h-screen">
       <div id="map" className="absolute top-0 left-0 w-full h-full" />
 
-      {/* Username badge */}
       {room && <UserBadge username={username} />}
 
-      {/* Connect / Disconnect */}
       {!room && (
         <button
           onClick={handleJoin}
@@ -153,7 +174,6 @@ async function handleReshuffle() {
         </button>
       )}
 
-      {/* Controls */}
       {room && (
         <Controls
           isMuted={isMuted}
@@ -162,8 +182,7 @@ async function handleReshuffle() {
         />
       )}
 
-      {/* Status */}
-      {status && !room && <Status message={status} />}
+      {status && <Status message={status} />}
     </div>
   );
 }
