@@ -11,7 +11,7 @@ export default function Home() {
   const [roomName] = useState("lobby");   // one shared room for now
   const [room, setRoom] = useState(null);
   const [username, setUsername] = useState("");
-  const [participants, setParticipants] = useState([]); // 👥 other users
+  const [participants, setParticipants] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
   const [connectDisabled, setConnectDisabled] = useState(true);
   const [connectText, setConnectText] = useState("Getting Location…");
@@ -20,7 +20,7 @@ export default function Home() {
   const reshuffleTimer = useRef(null);
   const warningTimer = useRef(null);
 
-  // --- Play audio with logging
+  // --- Audio helper
   function playAudio(src) {
     const audio = new Audio(src);
     audio.play()
@@ -28,21 +28,53 @@ export default function Home() {
       .catch(err => console.error("❌ Audio play failed:", src, err));
   }
 
+  // --- Manage Participants (de-dupe by identity)
+  function addParticipant(p) {
+    setParticipants((prev) => {
+      const updated = [...prev, p];
+      return Array.from(new Map(updated.map(u => [u.identity, u])).values());
+    });
+  }
+
+  function removeParticipant(p) {
+    setParticipants((prev) => prev.filter(x => x.identity !== p.identity));
+  }
+
+  // --- Schedule reshuffle timers
+  function scheduleReshuffle() {
+    if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+    if (warningTimer.current) clearTimeout(warningTimer.current);
+
+    console.log("⏳ Scheduling reshuffle warning at 30s");
+    warningTimer.current = setTimeout(() => {
+      console.log("⚠️ Reshuffle warning fired");
+      playAudio("/Reshuffle.mp3");
+      setStatus("You’ll be moved to a new channel in 30s…");
+    }, 30 * 1000);
+
+    console.log("⏳ Scheduling reshuffle at 60s");
+    reshuffleTimer.current = setTimeout(() => {
+      console.log("🔄 Reshuffle triggered");
+      handleReshuffle();
+    }, 60 * 1000);
+  }
+
   // --- Join Room ---
   async function handleJoin() {
     try {
       await joinRoom({
         roomName,
+        username, // ✅ keep same handle if already set
         onConnected: (newRoom, handle) => {
           setRoom(newRoom);
-          setUsername(handle);
+          setUsername((prev) => prev || handle); // preserve existing handle
           setConnectText("Connected");
           setConnectDisabled(true);
           setIsMuted(false);
 
           console.log("✅ Connected as", handle);
 
-          // Safe check for participants
+          // Init participants safely
           if (newRoom && newRoom.participants) {
             setParticipants([...newRoom.participants.values()]);
           } else {
@@ -51,32 +83,16 @@ export default function Home() {
 
           newRoom.on(RoomEvent.ParticipantConnected, (p) => {
             console.log("👥 Participant joined:", p.identity);
-            setParticipants((prev) => [...prev, p]);
+            addParticipant(p);
           });
 
           newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
             console.log("👥 Participant left:", p.identity);
-            setParticipants((prev) => prev.filter(x => x.identity !== p.identity));
+            removeParticipant(p);
           });
 
-          // Clear old timers
-          if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
-          if (warningTimer.current) clearTimeout(warningTimer.current);
-
-          // Schedule reshuffle warning
-          console.log("⏳ Scheduling reshuffle warning at 30s");
-          warningTimer.current = setTimeout(() => {
-            console.log("⚠️ Reshuffle warning fired");
-            playAudio("/Reshuffle.mp3");
-            setStatus("You’ll be moved to a new channel in 30s…");
-          }, 30 * 1000);
-
-          // Schedule reshuffle
-          console.log("⏳ Scheduling reshuffle at 60s");
-          reshuffleTimer.current = setTimeout(() => {
-            console.log("🔄 Reshuffle triggered");
-            handleReshuffle();
-          }, 60 * 1000);
+          // Start reshuffle timers
+          scheduleReshuffle();
 
           // Initial ad
           playAudio("/RoameoRoam.mp3");
@@ -124,7 +140,7 @@ export default function Home() {
 
       await joinRoom({
         roomName,
-        username, // keep same handle
+        username, // ✅ reuse same handle
         onConnected: (newRoom, handle) => {
           console.log("✅ Reconnected after reshuffle as", handle);
           setRoom(newRoom);
@@ -134,7 +150,7 @@ export default function Home() {
           setIsMuted(false);
           setStatus("");
 
-          // Safe participant init
+          // Init participants
           if (newRoom && newRoom.participants) {
             setParticipants([...newRoom.participants.values()]);
           } else {
@@ -143,13 +159,16 @@ export default function Home() {
 
           newRoom.on(RoomEvent.ParticipantConnected, (p) => {
             console.log("👥 Participant joined:", p.identity);
-            setParticipants((prev) => [...prev, p]);
+            addParticipant(p);
           });
 
           newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
             console.log("👥 Participant left:", p.identity);
-            setParticipants((prev) => prev.filter(x => x.identity !== p.identity));
+            removeParticipant(p);
           });
+
+          // Reschedule reshuffle timers again
+          scheduleReshuffle();
         },
         onDisconnected: () => {
           console.log("❌ Disconnected after reshuffle");
