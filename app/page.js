@@ -28,24 +28,27 @@ export default function Home() {
           setConnectDisabled(true);
           setIsMuted(false);
 
-          // ✅ Start reshuffle cycle (1 minute for testing)
-          if (reshuffleTimer) clearInterval(reshuffleTimer);
-          const timer = setInterval(() => {
-            handleReshuffle();
-          }, 60 * 1000);
-          setReshuffleTimer(timer);
+		  console.log("✅ Connected as", handle);
 
-          // Play initial ad sound
-          new Audio("/RoameoRoam.mp3").play();
-        },
-        onDisconnected: () => {
-          if (reshuffleTimer) clearInterval(reshuffleTimer);
-          setRoom(null);
-          setConnectText("Connect");
-          setConnectDisabled(false);
-          setIsMuted(false);
-        },
-      });
+		  // Clear old timers
+		  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+		  if (warningTimer.current) clearTimeout(warningTimer.current);
+
+		  // Explicit logs
+		  console.log("⏳ Scheduling reshuffle warning at 30s");
+		  warningTimer.current = setTimeout(() => {
+		  console.log("⚠️ Reshuffle warning fired");
+		  playAudio("/RoameoRoam.mp3"); // reuse your existing ad
+		  setStatus("You’ll be moved to a new channel in 30s…");
+		}, 30 * 1000);
+
+		console.log("⏳ Scheduling reshuffle at 60s");
+		reshuffleTimer.current = setTimeout(() => {
+		  console.log("🔄 Reshuffle triggered");
+		  handleReshuffle();
+		}, 60 * 1000);
+
+		playAudio("/RoameoRoam.mp3");
     } catch (err) {
       console.error("Voice connection failed:", err);
       setStatus("Voice connection failed");
