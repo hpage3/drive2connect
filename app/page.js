@@ -168,7 +168,13 @@ export default function Home() {
 
   return (
     <main>
-      <h1>Roameo Radio</h1>
+	 {/* 🗺️ Map container must exist for initMap() */}
+	 <div
+       id="map"
+       style={{ width: "100%", height: "400px", marginBottom: "1rem" }}
+     />
+
+      <h1>Drive2Connect</h1>
       <Status text={status} />
       <Controls
         connectText={connectText}

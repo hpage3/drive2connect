@@ -2,16 +2,25 @@ import mapboxgl from "mapbox-gl";
 
 mapboxgl.accessToken = "pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w";
 
-export function initMap(containerId, onLoad) {
+export function initMap(onReady) {
+  const container = document.getElementById("map");
+  if (!container) {
+    console.warn("⏳ Map container not ready yet");
+    return null;
+  }
+
+  mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
   const map = new mapboxgl.Map({
-    container: containerId,
+    container,
     style: "mapbox://styles/mapbox/streets-v11",
-    center: [-84.39, 33.75],
+    center: [-74.5, 40],
     zoom: 9,
   });
 
   map.on("load", () => {
-    if (onLoad) onLoad();
+    console.log("🗺️ Map loaded");
+    if (onReady) onReady();
   });
 
   return map;
