@@ -5,11 +5,13 @@ import { initMap } from "./lib/map/map";
 import UserBadge from "./components/UserBadge";
 import Controls from "./components/Controls";
 import Status from "./components/Status";
+import { RoomEvent } from "livekit-client";
 
 export default function Home() {
-  const [roomName] = useState("lobby");   // dynamic room name (currently one room)
+  const [roomName] = useState("lobby");   // one shared room for now
   const [room, setRoom] = useState(null);
   const [username, setUsername] = useState("");
+  const [participants, setParticipants] = useState([]); // 👥 other users
   const [isMuted, setIsMuted] = useState(false);
   const [connectDisabled, setConnectDisabled] = useState(true);
   const [connectText, setConnectText] = useState("Getting Location…");
@@ -18,9 +20,12 @@ export default function Home() {
   const reshuffleTimer = useRef(null);
   const warningTimer = useRef(null);
 
+  // --- Play audio with logging
   function playAudio(src) {
     const audio = new Audio(src);
-    audio.play().catch(() => console.warn("Autoplay blocked:", src));
+    audio.play()
+      .then(() => console.log("▶️ Playing:", src))
+      .catch(err => console.error("❌ Audio play failed:", src, err));
   }
 
   // --- Join Room ---
@@ -37,15 +42,28 @@ export default function Home() {
 
           console.log("✅ Connected as", handle);
 
+          // Track participants
+          setParticipants([...newRoom.participants.values()]);
+
+          newRoom.on(RoomEvent.ParticipantConnected, (p) => {
+            console.log("👥 Participant joined:", p.identity);
+            setParticipants((prev) => [...prev, p]);
+          });
+
+          newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+            console.log("👥 Participant left:", p.identity);
+            setParticipants((prev) => prev.filter(x => x.identity !== p.identity));
+          });
+
           // Clear old timers
           if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
           if (warningTimer.current) clearTimeout(warningTimer.current);
 
-          // Schedule warning
+          // Schedule reshuffle warning
           console.log("⏳ Scheduling reshuffle warning at 30s");
           warningTimer.current = setTimeout(() => {
             console.log("⚠️ Reshuffle warning fired");
-            playAudio("/Reshuffle.mp3"); // reuse existing file for now
+            playAudio("/Reshuffle.mp3");
             setStatus("You’ll be moved to a new channel in 30s…");
           }, 30 * 1000);
 
@@ -64,6 +82,7 @@ export default function Home() {
           if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
           if (warningTimer.current) clearTimeout(warningTimer.current);
           setRoom(null);
+          setParticipants([]);
           setConnectText("Connect");
           setConnectDisabled(false);
           setIsMuted(false);
@@ -84,6 +103,7 @@ export default function Home() {
     if (warningTimer.current) clearTimeout(warningTimer.current);
     disconnectRoom(room);
     setRoom(null);
+    setParticipants([]);
     setConnectDisabled(false);
     setConnectText("Connect");
     setIsMuted(false);
@@ -94,7 +114,7 @@ export default function Home() {
     console.log("🔄 Performing reshuffle…");
     try {
       disconnectRoom(room);
-      await new Promise(r => setTimeout(r, 500)); // short delay
+      await new Promise(r => setTimeout(r, 500)); // small delay
 
       playAudio("/RoameoRoam.mp3");
 
@@ -109,10 +129,24 @@ export default function Home() {
           setConnectDisabled(true);
           setIsMuted(false);
           setStatus("");
+
+          // Re-populate participants
+          setParticipants([...newRoom.participants.values()]);
+
+          newRoom.on(RoomEvent.ParticipantConnected, (p) => {
+            console.log("👥 Participant joined:", p.identity);
+            setParticipants((prev) => [...prev, p]);
+          });
+
+          newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+            console.log("👥 Participant left:", p.identity);
+            setParticipants((prev) => prev.filter(x => x.identity !== p.identity));
+          });
         },
         onDisconnected: () => {
           console.log("❌ Disconnected after reshuffle");
           setRoom(null);
+          setParticipants([]);
           setConnectText("Connect");
           setConnectDisabled(false);
           setIsMuted(false);
@@ -149,8 +183,24 @@ export default function Home() {
     <div className="relative w-full h-screen">
       <div id="map" className="absolute top-0 left-0 w-full h-full" />
 
-      {room && <UserBadge username={username} />}
+      {/* User + Participants */}
+      {room && (
+        <div className="absolute top-5 left-5 z-50 space-y-2">
+          <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
+            You are <strong>{username}</strong>
+          </div>
+          {participants.map((p) => (
+            <div
+              key={p.identity}
+              className="bg-black/50 text-white px-3 py-1 rounded"
+            >
+              {p.identity}
+            </div>
+          ))}
+        </div>
+      )}
 
+      {/* Connect / Disconnect */}
       {!room && (
         <button
           onClick={handleJoin}
@@ -174,6 +224,7 @@ export default function Home() {
         </button>
       )}
 
+      {/* Controls */}
       {room && (
         <Controls
           isMuted={isMuted}
@@ -182,6 +233,7 @@ export default function Home() {
         />
       )}
 
+      {/* Status */}
       {status && <Status message={status} />}
     </div>
   );
