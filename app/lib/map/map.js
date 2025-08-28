@@ -9,7 +9,7 @@ export function initMap(onReady) {
     return null;
   }
 
-  mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  // mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
   const map = new mapboxgl.Map({
     container,
