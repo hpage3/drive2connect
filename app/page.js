@@ -213,7 +213,7 @@ export default function Home() {
 
   // --- Map Init ---
   useEffect(() => {
-    initMap("map", () => {
+    initMap(() => {
       setConnectDisabled(false);
       setConnectText("Connect");
     });
