@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import { joinRoom, disconnectRoom, toggleMute, sendReaction } from "./lib/voice/room";
 import { initMap } from "./lib/map/map";
-import UserBadge from "./components/UserBadge";
 import Controls from "./components/Controls";
 import Status from "./components/Status";
 import { RoomEvent } from "livekit-client";
@@ -10,7 +9,8 @@ import { RoomEvent } from "livekit-client";
 export default function Home() {
   const [roomName] = useState("lobby");   // one shared room for now
   const [room, setRoom] = useState(null);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(""); // UI display only
+  const usernameRef = useRef("");              // 🔑 persistent handle
   const [participants, setParticipants] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
   const [connectDisabled, setConnectDisabled] = useState(true);
@@ -64,15 +64,23 @@ export default function Home() {
     try {
       await joinRoom({
         roomName,
-        username, // ✅ keep same handle if already set
+        username: usernameRef.current || undefined, // ✅ use persistent handle
         onConnected: (newRoom, handle) => {
           setRoom(newRoom);
-          setUsername((prev) => prev || handle); // preserve existing handle
+
+          // Save username once
+          if (!usernameRef.current) {
+            usernameRef.current = handle;
+            setUsername(handle);
+          } else {
+            setUsername(usernameRef.current);
+          }
+
           setConnectText("Connected");
           setConnectDisabled(true);
           setIsMuted(false);
 
-          console.log("✅ Connected as", handle);
+          console.log("✅ Connected as", usernameRef.current);
 
           // Init participants safely
           if (newRoom && newRoom.participants) {
@@ -140,11 +148,11 @@ export default function Home() {
 
       await joinRoom({
         roomName,
-        username, // ✅ reuse same handle
-        onConnected: (newRoom, handle) => {
-          console.log("✅ Reconnected after reshuffle as", handle);
+        username: usernameRef.current, // ✅ always reuse
+        onConnected: (newRoom) => {
+          console.log("✅ Reconnected after reshuffle as", usernameRef.current);
           setRoom(newRoom);
-          setUsername(handle);
+          setUsername(usernameRef.current);
           setConnectText("Connected");
           setConnectDisabled(true);
           setIsMuted(false);
@@ -167,7 +175,7 @@ export default function Home() {
             removeParticipant(p);
           });
 
-          // Reschedule reshuffle timers again
+          // Reschedule reshuffle timers
           scheduleReshuffle();
         },
         onDisconnected: () => {
