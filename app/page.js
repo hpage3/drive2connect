@@ -5,7 +5,7 @@ import {
   disconnectRoom,
   toggleMute,
   sendReaction,
-  stopMicTracks,   // ✅ new import
+  stopMicTracks,   // ✅ still needed for cleanup
 } from "./lib/voice/room";
 import { initMap } from "./lib/map/map";
 import Controls from "./components/Controls";
@@ -33,15 +33,12 @@ export default function Home() {
       .catch((err) => console.error("❌ Audio play failed:", src, err));
   }
 
-  // --- Manage Participants (dedupe by identity)
-  function addParticipant(p) {
-    setParticipants((prev) => {
-      const updated = [...prev, p];
-      return Array.from(new Map(updated.map((u) => [u.identity, u])).values());
-    });
+  // --- Manage Participants (event-driven, no dedupe)
+  function handleParticipantJoin(p) {
+    setParticipants((prev) => [...prev, p]);
   }
 
-  function removeParticipant(p) {
+  function handleParticipantLeave(p) {
     setParticipants((prev) => prev.filter((x) => x.identity !== p.identity));
   }
 
@@ -54,7 +51,6 @@ export default function Home() {
     warningTimer.current = setTimeout(() => {
       console.log("⚠️ Reshuffle warning fired");
       playAudio("/Reshuffle.mp3");
-      // setStatus("You’ll be moved to a new channel in 30s…"); // 🔇 muted, we already play audio
     }, 30 * 1000);
 
     console.log("⏳ Scheduling reshuffle at 60s");
@@ -80,19 +76,19 @@ export default function Home() {
           console.log("✅ Connected as", handle);
 
           if (newRoom && newRoom.participants) {
-            setParticipants([...newRoom.participants.values()]);
+            setParticipants(Array.from(newRoom.participants.values()));
           } else {
             setParticipants([]);
           }
 
           newRoom.on(RoomEvent.ParticipantConnected, (p) => {
             console.log("👥 Participant joined:", p.identity);
-            addParticipant(p);
+            handleParticipantJoin(p);
           });
 
           newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
             console.log("👥 Participant left:", p.identity);
-            removeParticipant(p);
+            handleParticipantLeave(p);
           });
 
           scheduleReshuffle();
@@ -102,7 +98,7 @@ export default function Home() {
           console.log("❌ Disconnected");
           if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
           if (warningTimer.current) clearTimeout(warningTimer.current);
-          stopMicTracks(room); // ✅ ensure mic shuts off
+          stopMicTracks(room);
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
@@ -123,7 +119,7 @@ export default function Home() {
     console.log("👋 Manual disconnect");
     if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
     if (warningTimer.current) clearTimeout(warningTimer.current);
-    stopMicTracks(room); // ✅ shut off mic
+    stopMicTracks(room);
     disconnectRoom(room);
     setRoom(null);
     setParticipants([]);
@@ -136,7 +132,7 @@ export default function Home() {
   async function handleReshuffle() {
     console.log("🔄 Performing reshuffle…");
     try {
-      stopMicTracks(room); // ✅ shut off mic before reshuffle
+      stopMicTracks(room);
       disconnectRoom(room);
       await new Promise((r) => setTimeout(r, 500));
 
@@ -155,26 +151,26 @@ export default function Home() {
           setStatus("");
 
           if (newRoom && newRoom.participants) {
-            setParticipants([...newRoom.participants.values()]);
+            setParticipants(Array.from(newRoom.participants.values()));
           } else {
             setParticipants([]);
           }
 
           newRoom.on(RoomEvent.ParticipantConnected, (p) => {
             console.log("👥 Participant joined:", p.identity);
-            addParticipant(p);
+            handleParticipantJoin(p);
           });
 
           newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
             console.log("👥 Participant left:", p.identity);
-            removeParticipant(p);
+            handleParticipantLeave(p);
           });
 
           scheduleReshuffle();
         },
         onDisconnected: () => {
           console.log("❌ Disconnected after reshuffle");
-          stopMicTracks(room); // ✅ shut off mic on disconnect
+          stopMicTracks(room);
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
