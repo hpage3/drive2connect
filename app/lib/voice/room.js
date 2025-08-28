@@ -2,14 +2,17 @@ import { Room, RoomEvent, createLocalAudioTrack } from "livekit-client";
 
 const LK_WS_URL = "wss://drive2connect-hvmppwa2.livekit.cloud";
 
-export async function joinRoom({ roomName, onConnected, onDisconnected }) {
-  const handle = generateHandle();
+export async function joinRoom({ roomName, username, onConnected, onDisconnected }) {
+  const handle = username || generateHandle();  // ✅ reuse handle if provided
   const res = await fetch(`/api/token?room=${roomName}&user=${handle}`);
   const { token } = await res.json();
   if (!token) throw new Error("No token returned");
 
   const room = new Room();
   await room.connect(LK_WS_URL, token);
+
+  const micTrack = await createLocalAudioTrack();
+  await room.localParticipant.publishTrack(micTrack);
 
   // Auto publish mic
   const micTrack = await createLocalAudioTrack();
