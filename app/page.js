@@ -4,7 +4,6 @@ import {
   joinRoom,
   disconnectRoom,
   toggleMute,
-  sendReaction,
 } from "./lib/voice/room";
 import { initMap } from "./lib/map/map";
 import UserBadge from "./components/UserBadge";
@@ -26,7 +25,7 @@ export default function Home() {
   const reshuffleTimerRef = useRef(null);
   const warningTimerRef = useRef(null);
 
-  // Initialize Map
+  // 🗺️ Initialize Map
   useEffect(() => {
     initMap(() => {
       setConnectDisabled(false);
@@ -34,7 +33,7 @@ export default function Home() {
     });
   }, []);
 
-  // Utility: play audio ads / warnings
+  // 🔊 Utility: play audio ads / warnings
   const playAudio = (src) => {
     try {
       const audio = new Audio(src);
@@ -46,7 +45,7 @@ export default function Home() {
     }
   };
 
-  // Utility: stop mic tracks safely
+  // 🎙️ Utility: stop mic tracks safely
   const stopMicTracks = (room) => {
     if (!room || !room.localParticipant) return;
     try {
@@ -61,7 +60,7 @@ export default function Home() {
     }
   };
 
-  // Join handler
+  // 🚪 Join handler
   async function handleJoin() {
     try {
       await joinRoom({
@@ -76,7 +75,7 @@ export default function Home() {
           setConnectDisabled(true);
           setIsMuted(false);
 
-          // Init participants list, exclude self
+          // Init participants list (exclude self)
           const initial = [
             ...newRoom.participants.values(),
           ].filter((p) => p.identity !== newRoom.localParticipant.identity);
@@ -121,7 +120,7 @@ export default function Home() {
     }
   }
 
-  // Disconnect handler
+  // ✋ Disconnect handler
   function handleDisconnect() {
     console.log("👋 Manual disconnect");
     if (room) {
@@ -136,7 +135,7 @@ export default function Home() {
     setIsMuted(false);
   }
 
-  // Reshuffle logic
+  // 🔄 Reshuffle logic
   function scheduleReshuffle(currentRoom) {
     console.log("⏳ Scheduling reshuffle warning at 30s");
     warningTimerRef.current = setTimeout(() => {
@@ -152,7 +151,7 @@ export default function Home() {
         disconnectRoom(currentRoom);
         console.log("🔄 Performing reshuffle…");
         playAudio("/RoameoRoam.mp3");
-        await new Promise((res) => setTimeout(res, 2000)); // small delay
+        await new Promise((res) => setTimeout(res, 2000)); // stability delay
         await handleJoin(); // rejoin with same usernameRef
         console.log("✅ Reconnected after reshuffle as", usernameRef.current);
       } catch (e) {
@@ -168,11 +167,11 @@ export default function Home() {
 
   return (
     <main>
-	 {/* 🗺️ Map container must exist for initMap() */}
-	 <div
-       id="map"
-       style={{ width: "100%", height: "400px", marginBottom: "1rem" }}
-     />
+      {/* 🗺️ Map container must exist for initMap() */}
+      <div
+        id="map"
+        style={{ width: "100%", height: "400px", marginBottom: "1rem" }}
+      />
 
       <h1>Drive2Connect</h1>
       <Status text={status} />
