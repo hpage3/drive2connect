@@ -1,27 +1,47 @@
+"use client";
 import mapboxgl from "mapbox-gl";
 
-mapboxgl.accessToken = "pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w";
+mapboxgl.accessToken =
+  "pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w";
 
 export function initMap(onReady) {
   const container = document.getElementById("map");
   if (!container) {
-    console.warn("⏳ Map container not ready yet");
-    return null;
+    console.error("❌ Map container not found");
+    return;
   }
 
-  // mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  // Default center (fallback = NJ)
+  let defaultCenter = [-74.5, 40];
+
+  // Try to get user location
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude } = pos.coords;
+      console.log("📍 Got user location:", latitude, longitude);
+      setupMap([longitude, latitude], onReady);
+    },
+    (err) => {
+      console.warn("⚠️ Geolocation failed, using fallback:", err.message);
+      setupMap(defaultCenter, onReady);
+    }
+  );
+}
+
+function setupMap(center, onReady) {
+  const container = document.getElementById("map");
+  if (!container) return;
 
   const map = new mapboxgl.Map({
     container,
     style: "mapbox://styles/mapbox/streets-v11",
-    center: [-74.5, 40],
-    zoom: 9,
+    center,
+    zoom: 12,
   });
 
   map.on("load", () => {
-    console.log("🗺️ Map loaded");
+    console.log("🗺️ Map ready at", center);
+    new mapboxgl.Marker().setLngLat(center).addTo(map);
     if (onReady) onReady();
   });
-
-  return map;
 }
