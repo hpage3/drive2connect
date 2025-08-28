@@ -56,22 +56,30 @@ export function sendReaction(room, type) {
 }
 
 // ✅ NEW: stop and release microphone tracks
+// --- Stop mic tracks safely
 export function stopMicTracks(room) {
-  if (!room) return;
-  const lp = room.localParticipant;
-  if (!lp) return;
-
-  lp.tracks.forEach((pub) => {
-    const track = pub.track;
-    if (track && track.mediaStreamTrack) {
-      try {
-        track.mediaStreamTrack.stop();
-        console.log("🎤 Mic track stopped");
-      } catch (err) {
-        console.warn("⚠️ Error stopping mic track", err);
-      }
+  try {
+    if (!room) {
+      console.log("🎤 No room, nothing to stop.");
+      return;
     }
-  });
+
+    const lp = room.localParticipant;
+    if (!lp || !lp.audioTracks) {
+      console.log("🎤 No local participant audio tracks to stop.");
+      return;
+    }
+
+    lp.audioTracks.forEach((pub) => {
+      const track = pub.track;
+      if (track && track.mediaStreamTrack) {
+        track.mediaStreamTrack.stop();
+        console.log("🎤 Mic track stopped.");
+      }
+    });
+  } catch (err) {
+    console.warn("⚠️ stopMicTracks failed:", err);
+  }
 }
 
 function generateHandle() {
