@@ -42,8 +42,12 @@ export default function Home() {
 
           console.log("✅ Connected as", handle);
 
-          // Track participants
-          setParticipants([...newRoom.participants.values()]);
+          // Safe check for participants
+          if (newRoom && newRoom.participants) {
+            setParticipants([...newRoom.participants.values()]);
+          } else {
+            setParticipants([]);
+          }
 
           newRoom.on(RoomEvent.ParticipantConnected, (p) => {
             console.log("👥 Participant joined:", p.identity);
@@ -130,8 +134,12 @@ export default function Home() {
           setIsMuted(false);
           setStatus("");
 
-          // Re-populate participants
-          setParticipants([...newRoom.participants.values()]);
+          // Safe participant init
+          if (newRoom && newRoom.participants) {
+            setParticipants([...newRoom.participants.values()]);
+          } else {
+            setParticipants([]);
+          }
 
           newRoom.on(RoomEvent.ParticipantConnected, (p) => {
             console.log("👥 Participant joined:", p.identity);
