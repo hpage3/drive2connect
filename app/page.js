@@ -45,7 +45,7 @@ export default function Home() {
           console.log("⏳ Scheduling reshuffle warning at 30s");
           warningTimer.current = setTimeout(() => {
             console.log("⚠️ Reshuffle warning fired");
-            playAudio("/RoameoRoam.mp3"); // reuse existing file for now
+            playAudio("/Reshuffle.mp3"); // reuse existing file for now
             setStatus("You’ll be moved to a new channel in 30s…");
           }, 30 * 1000);
 
