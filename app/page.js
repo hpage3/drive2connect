@@ -5,7 +5,7 @@ import {
   disconnectRoom,
   toggleMute,
   sendReaction,
-  stopMicTracks,   // ✅ mic shutoff helper
+  stopMicTracks,   // ✅ new import
 } from "./lib/voice/room";
 import { initMap } from "./lib/map/map";
 import Controls from "./components/Controls";
@@ -28,13 +28,12 @@ export default function Home() {
   // --- Audio helper
   function playAudio(src) {
     const audio = new Audio(src);
-    audio
-      .play()
+    audio.play()
       .then(() => console.log("▶️ Playing:", src))
       .catch((err) => console.error("❌ Audio play failed:", src, err));
   }
 
-  // --- Manage Participants (de-dupe by identity)
+  // --- Manage Participants (dedupe by identity)
   function addParticipant(p) {
     setParticipants((prev) => {
       const updated = [...prev, p];
@@ -55,7 +54,7 @@ export default function Home() {
     warningTimer.current = setTimeout(() => {
       console.log("⚠️ Reshuffle warning fired");
       playAudio("/Reshuffle.mp3");
-      // setStatus("You’ll be moved to a new channel in 30s…"); // 🔇 status msg disabled
+      // setStatus("You’ll be moved to a new channel in 30s…"); // 🔇 muted, we already play audio
     }, 30 * 1000);
 
     console.log("⏳ Scheduling reshuffle at 60s");
@@ -65,7 +64,7 @@ export default function Home() {
     }, 60 * 1000);
   }
 
-  // --- Join Room ---
+  // --- Join Room
   async function handleJoin() {
     try {
       await joinRoom({
@@ -80,7 +79,6 @@ export default function Home() {
 
           console.log("✅ Connected as", handle);
 
-          // Init participants
           if (newRoom && newRoom.participants) {
             setParticipants([...newRoom.participants.values()]);
           } else {
@@ -102,9 +100,9 @@ export default function Home() {
         },
         onDisconnected: () => {
           console.log("❌ Disconnected");
-          stopMicTracks(room);   // ✅ release mic
           if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
           if (warningTimer.current) clearTimeout(warningTimer.current);
+          stopMicTracks(room); // ✅ ensure mic shuts off
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
@@ -120,12 +118,12 @@ export default function Home() {
     }
   }
 
-  // --- Disconnect Room ---
+  // --- Disconnect Room
   function handleDisconnect() {
     console.log("👋 Manual disconnect");
-    stopMicTracks(room);   // ✅ release mic
     if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
     if (warningTimer.current) clearTimeout(warningTimer.current);
+    stopMicTracks(room); // ✅ shut off mic
     disconnectRoom(room);
     setRoom(null);
     setParticipants([]);
@@ -134,13 +132,13 @@ export default function Home() {
     setIsMuted(false);
   }
 
-  // --- Reshuffle ---
+  // --- Reshuffle
   async function handleReshuffle() {
     console.log("🔄 Performing reshuffle…");
     try {
-      stopMicTracks(room);   // ✅ release mic before reshuffle
+      stopMicTracks(room); // ✅ shut off mic before reshuffle
       disconnectRoom(room);
-      await new Promise((r) => setTimeout(r, 1000)); // small delay
+      await new Promise((r) => setTimeout(r, 500));
 
       playAudio("/RoameoRoam.mp3");
 
@@ -176,7 +174,7 @@ export default function Home() {
         },
         onDisconnected: () => {
           console.log("❌ Disconnected after reshuffle");
-          stopMicTracks(room);   // ✅ release mic
+          stopMicTracks(room); // ✅ shut off mic on disconnect
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
@@ -190,20 +188,20 @@ export default function Home() {
     }
   }
 
-  // --- Toggle Mute ---
+  // --- Toggle Mute
   async function handleMuteToggle() {
     if (!room) return;
     await toggleMute(room, isMuted);
     setIsMuted(!isMuted);
   }
 
-  // --- Reactions ---
+  // --- Reactions
   function handleReaction(type) {
     if (!room) return;
     sendReaction(room, type);
   }
 
-  // --- Map Init ---
+  // --- Map Init
   useEffect(() => {
     initMap("map", () => {
       setConnectDisabled(false);
