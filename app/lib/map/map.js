@@ -4,8 +4,8 @@ import mapboxgl from "mapbox-gl";
 mapboxgl.accessToken =
   "pk.eyJ1Ijoicm9tZW8yMDI1IiwiYSI6ImNtOTRsenl2ZjB5ZW4ya3E4bjdrYWR2NWcifQ.lhqHkfQZIUqZtS0t1Yq73w";
 
-export function initMap(onReady) {
-  const container = document.getElementById("map");
+export function initMap(containerId = "map", onReady) {
+  const container = document.getElementById(containerId);
   if (!container) {
     console.error("❌ Map container not found");
     return;
@@ -19,17 +19,17 @@ export function initMap(onReady) {
     (pos) => {
       const { latitude, longitude } = pos.coords;
       console.log("📍 Got user location:", latitude, longitude);
-      setupMap([longitude, latitude], onReady);
+      setupMap(containerId, [longitude, latitude], onReady);
     },
     (err) => {
       console.warn("⚠️ Geolocation failed, using fallback:", err.message);
-      setupMap(defaultCenter, onReady);
+      setupMap(containerId, defaultCenter, onReady);
     }
   );
 }
 
-function setupMap(center, onReady) {
-  const container = document.getElementById("map");
+function setupMap(containerId, center, onReady) {
+  const container = document.getElementById(containerId);
   if (!container) return;
 
   const map = new mapboxgl.Map({
@@ -42,6 +42,6 @@ function setupMap(center, onReady) {
   map.on("load", () => {
     console.log("🗺️ Map ready at", center);
     new mapboxgl.Marker().setLngLat(center).addTo(map);
-    if (onReady) onReady();
+    if (typeof onReady === "function") onReady();
   });
 }
