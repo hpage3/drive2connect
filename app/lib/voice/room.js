@@ -85,14 +85,20 @@ export function stopMicTracks(room) {
     if (!room) return;
 
     const lp = room.localParticipant;
-    if (!lp || !lp.audioTracks) {
-      console.log("🎤 No local audio tracks to stop");
+    if (!lp) {
+      console.log("🎤 No local participant.");
       return;
     }
 
-    [...lp.audioTracks.values()].forEach((pub) => {
+    // Look at both audioTracks (map of TrackPublications) and all tracks
+    const pubs = [
+      ...lp.audioTracks.values(),
+      ...lp.tracks.values()
+    ];
+
+    pubs.forEach((pub) => {
       const track = pub.track;
-      if (track) {
+      if (track && track.kind === "audio") {
         try {
           lp.unpublishTrack(track);
         } catch (e) {
@@ -101,8 +107,8 @@ export function stopMicTracks(room) {
 
         if (track.mediaStreamTrack) {
           track.mediaStreamTrack.stop();
+          console.log("🎤 Mic track stopped at media layer.");
         }
-        console.log("🎤 Mic track unpublished + stopped.");
       }
     });
   } catch (err) {
