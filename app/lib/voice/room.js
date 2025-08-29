@@ -65,19 +65,20 @@ export async function toggleMute(room, isMuted) {
       console.warn("⚠️ No local participant for mute toggle");
       return;
     }
-
+room.localParticipant
     let pub = null;
 
     // If we already have a cached mic track, find its publication
-    if (currentMicTrack) {
-      pub = [...room.localParticipant.audioTracks.values()]
-        .find((p) => p.track === currentMicTrack);
+    if (currentMicTrack && room.localParticipant.audioTracks) {
+	  pub = [...room.localParticipant.audioTracks.values()]
+     .find((p) => p.track === currentMicTrack);
     }
 
+
     // Otherwise, grab the first audio publication
-    if (!pub && room.localParticipant.audioTracks.size > 0) {
-      pub = [...room.localParticipant.audioTracks.values()][0];
-      currentMicTrack = pub?.track || currentMicTrack;
+    if (!pub && room.localParticipant.audioTracks && room.localParticipant.audioTracks.size > 0) {
+		pub = [...room.localParticipant.audioTracks.values()][0];
+		currentMicTrack = pub?.track || currentMicTrack;
     }
 
     // If no publication yet and unmuting → create/publish track
