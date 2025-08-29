@@ -100,17 +100,6 @@ function setupParticipantHandlers(newRoom) {
   });
 }
 
-
-  // 3. delayed resync safety net
-  setTimeout(() => {
-    if (newRoom.participants) {
-      const list = Array.from(newRoom.participants.values());
-      setParticipants(list);
-      console.log("🔄 Participant list resynced:", list.map(p => p.identity));
-    }
-  }, 5000);
-}
-
   // --- Join Room
   async function handleJoin() {
     try {
