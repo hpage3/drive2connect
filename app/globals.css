@@ -59,17 +59,26 @@ button.bg-red-600:hover {
 /* ============================= */
 /* 🎛 Controls layout for buttons */
 /* ============================= */
-/* Controls now anchored bottom-left */
+/* Controls anchored bottom-left on desktop, centered on mobile */
 .controls {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
   display: flex;
   flex-direction: row;
-  gap: 12px;        /* space between buttons */
-  z-index: 50;
+  gap: 12px;
+  z-index: 1000;
   background: rgba(0, 0, 0, 0.6);
   padding: 8px 12px;
   border-radius: 8px;
   align-items: center;
+}
+
+/* On small screens, center at bottom */
+@media (max-width: 768px) {
+  .controls {
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 0.5rem;      /* tuck a bit above the mobile browser chrome */
+  }
 }
