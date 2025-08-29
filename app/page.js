@@ -42,7 +42,10 @@ export default function Home() {
   }
 
   function resyncParticipants(room) {
-    if (!room) return;
+    if (!room || !room.participants) {
+      console.log("⚠️ No participants yet to resync");
+      return;
+    }
     setParticipants(Array.from(room.participants.values()));
     console.log("🔄 Participant list resynced");
   }
