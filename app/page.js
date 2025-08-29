@@ -84,7 +84,7 @@ function setupParticipantHandlers(newRoom) {
       setParticipants(list);
       console.log("👥 Initial snapshot:", list.map(p => p.identity));
     }
-  }, 800); // wait a bit so remote peers are available
+  }, 2500); // wait a bit so remote peers are available
 
   // Event-driven updates
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
