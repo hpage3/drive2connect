@@ -41,7 +41,8 @@ export async function joinRoom({ roomName, username, onConnected, onDisconnected
 
 export function disconnectRoom(room) {
   if (room) {
-    stopMicTracks(room); // ✅ shut off mic before leaving
+    // Always unpublish + stop before disconnect
+    stopMicTracks(room);
     room.disconnect();
   }
 }
@@ -59,22 +60,22 @@ export function sendReaction(room, type) {
 // --- Stop mic tracks safely
 export function stopMicTracks(room) {
   try {
-    if (!room) {
-      console.log("🎤 No room, nothing to stop.");
-      return;
-    }
+    if (!room) return;
 
     const lp = room.localParticipant;
-    if (!lp || !lp.audioTracks) {
-      console.log("🎤 No local participant audio tracks to stop.");
-      return;
-    }
+    if (!lp) return;
 
-    lp.audioTracks.forEach((pub) => {
+    [...lp.audioTracks.values()].forEach((pub) => {
       const track = pub.track;
-      if (track && track.mediaStreamTrack) {
-        track.mediaStreamTrack.stop();
-        console.log("🎤 Mic track stopped.");
+      if (track) {
+        // Unpublish first so LiveKit knows we’re done
+        lp.unpublishTrack(track);
+
+        // Then stop the hardware stream
+        if (track.mediaStreamTrack) {
+          track.mediaStreamTrack.stop();
+        }
+        console.log("🎤 Mic track unpublished + stopped.");
       }
     });
   } catch (err) {

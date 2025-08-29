@@ -119,7 +119,7 @@ export default function Home() {
     console.log("👋 Manual disconnect");
     if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
     if (warningTimer.current) clearTimeout(warningTimer.current);
-    stopMicTracks(room);
+    // stopMicTracks(room);
     disconnectRoom(room);
     setRoom(null);
     setParticipants([]);
@@ -132,7 +132,7 @@ export default function Home() {
   async function handleReshuffle() {
     console.log("🔄 Performing reshuffle…");
     try {
-      stopMicTracks(room);
+      // stopMicTracks(room);
       disconnectRoom(room);
       await new Promise((r) => setTimeout(r, 500));
 
@@ -170,7 +170,7 @@ export default function Home() {
         },
         onDisconnected: () => {
           console.log("❌ Disconnected after reshuffle");
-          stopMicTracks(room);
+          // stopMicTracks(room);
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
