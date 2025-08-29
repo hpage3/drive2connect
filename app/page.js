@@ -72,20 +72,23 @@ export default function Home() {
 // --- Setup participant listeners
 // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
-  // 0. always start fresh
+  // Clear on join/reshuffle
   setParticipants([]);
   console.log("👥 Participant list cleared at join/reshuffle");
 
-  // 1. delayed initial snapshot (allow peers time to connect)
+  // Initial snapshot (include self + remote peers)
   setTimeout(() => {
-    if (newRoom.participants) {
-      const list = Array.from(newRoom.participants.values());
+    if (newRoom.localParticipant && newRoom.participants) {
+      const list = [
+        newRoom.localParticipant,
+        ...Array.from(newRoom.participants.values())
+      ];
       setParticipants(list);
-      console.log("👥 Initial participant snapshot:", list.map(p => p.identity));
+      console.log("👥 Initial snapshot:", list.map(p => p.identity));
     }
-  }, 2000);
+  }, 800); // wait a bit so remote peers are available
 
-  // 2. event-driven updates
+  // Event-driven updates
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
     console.log("👥 Participant joined:", p.identity);
     setParticipants((prev) => [...prev, p]);
@@ -97,6 +100,8 @@ function setupParticipantHandlers(newRoom) {
       prev.filter((x) => x.identity !== p.identity)
     );
   });
+}
+
 
   // 3. delayed resync safety net
   setTimeout(() => {
