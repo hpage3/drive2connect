@@ -5,8 +5,7 @@ import {
   disconnectRoom,
   toggleMute,
   sendReaction,
-  stopMicTracks,   // ✅ still needed for cleanup
-} from "./lib/voice/room";
+} from "./lib/voice/room";   // ⬅️ stopMicTracks no longer imported
 import { initMap } from "./lib/map/map";
 import Controls from "./components/Controls";
 import Status from "./components/Status";
@@ -98,7 +97,6 @@ export default function Home() {
           console.log("❌ Disconnected");
           if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
           if (warningTimer.current) clearTimeout(warningTimer.current);
-          stopMicTracks(room);
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
@@ -119,7 +117,6 @@ export default function Home() {
     console.log("👋 Manual disconnect");
     if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
     if (warningTimer.current) clearTimeout(warningTimer.current);
-    // stopMicTracks(room);
     disconnectRoom(room);
     setRoom(null);
     setParticipants([]);
@@ -132,7 +129,6 @@ export default function Home() {
   async function handleReshuffle() {
     console.log("🔄 Performing reshuffle…");
     try {
-      // stopMicTracks(room);
       disconnectRoom(room);
       await new Promise((r) => setTimeout(r, 500));
 
@@ -170,7 +166,6 @@ export default function Home() {
         },
         onDisconnected: () => {
           console.log("❌ Disconnected after reshuffle");
-          // stopMicTracks(room);
           setRoom(null);
           setParticipants([]);
           setConnectText("Connect");
