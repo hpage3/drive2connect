@@ -69,8 +69,6 @@ export default function Home() {
   }
 
   // --- Setup participant listeners
-// --- Setup participant listeners
-// --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
   // Clear on join/reshuffle
   setParticipants([]);
