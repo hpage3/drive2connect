@@ -69,24 +69,39 @@ export default function Home() {
   }
 
   // --- Setup participant listeners
-  function setupParticipantHandlers(newRoom) {
-    // 1. initial snapshot
-    resyncParticipants(newRoom);
+// --- Setup participant listeners
+function setupParticipantHandlers(newRoom) {
+  // 0. always start fresh
+  setParticipants([]);
 
-    // 2. event-driven updates
-    newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-      console.log("👥 Participant joined:", p.identity);
-      handleParticipantJoin(p);
-    });
-
-    newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-      console.log("👥 Participant left:", p.identity);
-      handleParticipantLeave(p);
-    });
-
-    // 3. delayed resync
-    setTimeout(() => resyncParticipants(newRoom), 5000);
+  // 1. authoritative snapshot from LiveKit
+  if (newRoom.participants && newRoom.participants.size > 0) {
+    setParticipants(Array.from(newRoom.participants.values()));
   }
+  console.log("🔄 Participant list reset + snapshot loaded");
+
+  // 2. event-driven updates
+  newRoom.on(RoomEvent.ParticipantConnected, (p) => {
+    console.log("👥 Participant joined:", p.identity);
+    setParticipants((prev) => [...prev, p]);
+  });
+
+  newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+    console.log("👥 Participant left:", p.identity);
+    setParticipants((prev) =>
+      prev.filter((x) => x.identity !== p.identity)
+    );
+  });
+
+  // 3. delayed resync (safety net for race conditions)
+  setTimeout(() => {
+    if (newRoom.participants) {
+      setParticipants(Array.from(newRoom.participants.values()));
+      console.log("🔄 Participant list resynced after delay");
+    }
+  }, 5000);
+}
+
 
   // --- Join Room
   async function handleJoin() {
