@@ -59,35 +59,40 @@ export function disconnectRoom(room) {
 }
 
 // ✅ Hardened mute toggle
+// ✅ Hardened mute toggle with cached mic support
 export async function toggleMute(room, isMuted) {
-  if (!room || !room.localParticipant) return;
-
-  const lp = room.localParticipant;
-
-  // If no audio track exists and we are unmuting → create one
-  if (lp.audioTracks.size === 0 && !isMuted) {
-    try {
-      const micTrack = await createLocalAudioTrack();
-      await lp.publishTrack(micTrack);
-      console.log("🎤 New mic track published (unmuted).");
-    } catch (err) {
-      console.error("❌ Failed to create/publish mic track:", err);
-    }
-    return;
-  }
-
-  // Otherwise, just toggle
   try {
-    await lp.setMicrophoneEnabled(!isMuted);
-    console.log(`🎤 Mic ${isMuted ? "unmuted" : "muted"}.`);
-  } catch (err) {
-    console.error("❌ toggleMute failed:", err);
-  }
-}
+    let track = null;
 
-export function sendReaction(room, type) {
-  const payload = new TextEncoder().encode(JSON.stringify({ type }));
-  room.localParticipant.publishData(payload, { topic: "ui", reliable: true });
+    // Prefer the cached mic track
+    if (currentMicTrack) {
+      track = currentMicTrack;
+    } else if (
+      room?.localParticipant?.audioTracks &&
+      room.localParticipant.audioTracks.size > 0
+    ) {
+      const pub = [...room.localParticipant.audioTracks.values()][0];
+      track = pub?.track || null;
+    }
+
+    if (!track) {
+      if (!isMuted) {
+        // If unmuting but no track exists → create new one
+        currentMicTrack = await createLocalAudioTrack();
+        await room.localParticipant.publishTrack(currentMicTrack);
+        console.log("🎤 New mic track published (unmuted).");
+      } else {
+        console.warn("⚠️ No mic track available to mute");
+      }
+      return;
+    }
+
+    // Toggle mute by enabling/disabling the track
+    track.enabled = !isMuted;
+    console.log(`🎤 Mic ${isMuted ? "muted" : "unmuted"}`);
+  } catch (err) {
+    console.warn("⚠️ toggleMute failed:", err);
+  }
 }
 
 // ✅ Stop and release microphone tracks
