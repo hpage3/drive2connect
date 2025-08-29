@@ -154,7 +154,7 @@ export default function Home() {
         onConnected: (newRoom, handle) => {
           console.log("✅ Reconnected after reshuffle as", handle);
           setRoom(newRoom);
-          setUsername(handle);
+          setUsername((prev) => prev || handle);
           setConnectText("Connected");
           setConnectDisabled(true);
           setIsMuted(false);

@@ -85,15 +85,20 @@ export function stopMicTracks(room) {
     if (!room) return;
 
     const lp = room.localParticipant;
-    if (!lp) return;
+    if (!lp || !lp.audioTracks) {
+      console.log("🎤 No local audio tracks to stop");
+      return;
+    }
 
     [...lp.audioTracks.values()].forEach((pub) => {
       const track = pub.track;
       if (track) {
-        // Unpublish first so LiveKit knows we’re done
-        lp.unpublishTrack(track);
+        try {
+          lp.unpublishTrack(track);
+        } catch (e) {
+          console.warn("⚠️ Could not unpublish track", e);
+        }
 
-        // Then stop the hardware stream
         if (track.mediaStreamTrack) {
           track.mediaStreamTrack.stop();
         }
