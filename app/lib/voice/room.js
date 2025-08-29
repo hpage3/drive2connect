@@ -59,37 +59,43 @@ export function disconnectRoom(room) {
 }
 
 // ✅ Hardened mute toggle
-// ✅ Hardened mute toggle with cached mic support
 export async function toggleMute(room, isMuted) {
   try {
-    let track = null;
-
-    // Prefer the cached mic track
-    if (currentMicTrack) {
-      track = currentMicTrack;
-    } else if (
-      room?.localParticipant?.audioTracks &&
-      room.localParticipant.audioTracks.size > 0
-    ) {
-      const pub = [...room.localParticipant.audioTracks.values()][0];
-      track = pub?.track || null;
-    }
-
-    if (!track) {
-      if (!isMuted) {
-        // If unmuting but no track exists → create new one
-        currentMicTrack = await createLocalAudioTrack();
-        await room.localParticipant.publishTrack(currentMicTrack);
-        console.log("🎤 New mic track published (unmuted).");
-      } else {
-        console.warn("⚠️ No mic track available to mute");
-      }
+    if (!room?.localParticipant) {
+      console.warn("⚠️ No local participant for mute toggle");
       return;
     }
 
-    // Toggle mute by enabling/disabling the track
-    track.enabled = !isMuted;
-    console.log(`🎤 Mic ${isMuted ? "muted" : "unmuted"}`);
+    let pub = null;
+
+    // If we already have a cached mic track, find its publication
+    if (currentMicTrack) {
+      pub = [...room.localParticipant.audioTracks.values()]
+        .find((p) => p.track === currentMicTrack);
+    }
+
+    // Otherwise, grab the first audio publication
+    if (!pub && room.localParticipant.audioTracks.size > 0) {
+      pub = [...room.localParticipant.audioTracks.values()][0];
+      currentMicTrack = pub?.track || currentMicTrack;
+    }
+
+    // If no publication yet and unmuting → create/publish track
+    if (!pub && !isMuted) {
+      currentMicTrack = await createLocalAudioTrack();
+      await room.localParticipant.publishTrack(currentMicTrack);
+      console.log("🎤 New mic track published (unmuted).");
+      return;
+    }
+
+    if (!pub) {
+      console.warn("⚠️ No mic publication found to toggle");
+      return;
+    }
+
+    // ✅ Use LiveKit API to mute/unmute
+    await pub.setMuted(!isMuted);
+    console.log(`🎤 Mic ${!isMuted ? "muted" : "unmuted"}`);
   } catch (err) {
     console.warn("⚠️ toggleMute failed:", err);
   }
