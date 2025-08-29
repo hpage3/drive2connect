@@ -5,7 +5,7 @@ import {
   disconnectRoom,
   toggleMute,
   sendReaction,
-} from "./lib/voice/room";   // ⬅️ stopMicTracks no longer imported
+} from "./lib/voice/room";
 import { initMap } from "./lib/map/map";
 import Controls from "./components/Controls";
 import Status from "./components/Status";
@@ -32,13 +32,19 @@ export default function Home() {
       .catch((err) => console.error("❌ Audio play failed:", src, err));
   }
 
-  // --- Manage Participants (event-driven, no dedupe)
+  // --- Manage Participants
   function handleParticipantJoin(p) {
     setParticipants((prev) => [...prev, p]);
   }
 
   function handleParticipantLeave(p) {
     setParticipants((prev) => prev.filter((x) => x.identity !== p.identity));
+  }
+
+  function resyncParticipants(room) {
+    if (!room) return;
+    setParticipants(Array.from(room.participants.values()));
+    console.log("🔄 Participant list resynced");
   }
 
   // --- Schedule reshuffle timers
@@ -59,6 +65,26 @@ export default function Home() {
     }, 60 * 1000);
   }
 
+  // --- Setup participant listeners
+  function setupParticipantHandlers(newRoom) {
+    // 1. initial snapshot
+    resyncParticipants(newRoom);
+
+    // 2. event-driven updates
+    newRoom.on(RoomEvent.ParticipantConnected, (p) => {
+      console.log("👥 Participant joined:", p.identity);
+      handleParticipantJoin(p);
+    });
+
+    newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+      console.log("👥 Participant left:", p.identity);
+      handleParticipantLeave(p);
+    });
+
+    // 3. delayed resync
+    setTimeout(() => resyncParticipants(newRoom), 5000);
+  }
+
   // --- Join Room
   async function handleJoin() {
     try {
@@ -74,22 +100,7 @@ export default function Home() {
 
           console.log("✅ Connected as", handle);
 
-          if (newRoom && newRoom.participants) {
-            setParticipants(Array.from(newRoom.participants.values()));
-          } else {
-            setParticipants([]);
-          }
-
-          newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-            console.log("👥 Participant joined:", p.identity);
-            handleParticipantJoin(p);
-          });
-
-          newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-            console.log("👥 Participant left:", p.identity);
-            handleParticipantLeave(p);
-          });
-
+          setupParticipantHandlers(newRoom);
           scheduleReshuffle();
           playAudio("/RoameoRoam.mp3");
         },
@@ -146,22 +157,7 @@ export default function Home() {
           setIsMuted(false);
           setStatus("");
 
-          if (newRoom && newRoom.participants) {
-            setParticipants(Array.from(newRoom.participants.values()));
-          } else {
-            setParticipants([]);
-          }
-
-          newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-            console.log("👥 Participant joined:", p.identity);
-            handleParticipantJoin(p);
-          });
-
-          newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-            console.log("👥 Participant left:", p.identity);
-            handleParticipantLeave(p);
-          });
-
+          setupParticipantHandlers(newRoom);
           scheduleReshuffle();
         },
         onDisconnected: () => {
