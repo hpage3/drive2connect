@@ -108,15 +108,17 @@ export default function Home() {
           playAudio("/RoameoRoam.mp3");
         },
         onDisconnected: () => {
-          console.log("❌ Disconnected");
-          if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
-          if (warningTimer.current) clearTimeout(warningTimer.current);
-          setRoom(null);
-          setParticipants([]);
-          setConnectText("Connect");
-          setConnectDisabled(false);
-          setIsMuted(false);
-        },
+		  console.log("❌ Disconnected");
+		  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+		  if (warningTimer.current) clearTimeout(warningTimer.current);
+		  setRoom(null);
+		  setParticipants([]);
+		  setConnectText("Connect");
+		  setConnectDisabled(false);
+		  setIsMuted(false);
+		  // ⚠️ do NOT clear username here — preserve across reshuffles
+		},
+
       });
     } catch (err) {
       console.error("Voice connection failed:", err);
@@ -164,13 +166,14 @@ export default function Home() {
           scheduleReshuffle();
         },
         onDisconnected: () => {
-          console.log("❌ Disconnected after reshuffle");
-          setRoom(null);
-          setParticipants([]);
-          setConnectText("Connect");
-          setConnectDisabled(false);
-          setIsMuted(false);
-        },
+		  console.log("❌ Disconnected after reshuffle");
+		  setRoom(null);
+		  setParticipants([]);
+		  setConnectText("Connect");
+		  setConnectDisabled(false);
+		  setIsMuted(false);
+		  // ⚠️ do NOT clear username here either
+		},
       });
     } catch (err) {
       console.error("❌ Reshuffle failed:", err);
