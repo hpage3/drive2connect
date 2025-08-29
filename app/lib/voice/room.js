@@ -2,8 +2,18 @@ import { Room, RoomEvent, createLocalAudioTrack } from "livekit-client";
 
 const LK_WS_URL = "wss://drive2connect-hvmppwa2.livekit.cloud";
 
+let currentHandle = null;
+let currentMicTrack = null; // 🔒 keep a reference to mic
+
 export async function joinRoom({ roomName, username, onConnected, onDisconnected }) {
-  const handle = username || generateHandle();  // ✅ reuse handle if passed
+  // const handle = username || generateHandle();  // ✅ reuse handle if passed
+  
+	let handle = username;
+	if (!handle || handle.trim() === "") {
+	  handle = currentHandle || generateHandle();
+	}
+	currentHandle = handle;
+	 
   const res = await fetch(`/api/token?room=${roomName}&user=${handle}`);
   const { token } = await res.json();
   if (!token) throw new Error("No token returned");
@@ -12,8 +22,9 @@ export async function joinRoom({ roomName, username, onConnected, onDisconnected
   await room.connect(LK_WS_URL, token);
 
   // ✅ Publish mic track on join
-  const micTrack = await createLocalAudioTrack();
-  await room.localParticipant.publishTrack(micTrack);
+  currentMicTrack = await createLocalAudioTrack();
+  await room.localParticipant.publishTrack(currentMicTrack);
+
 
   // Attach remote audio
   room.on(RoomEvent.TrackSubscribed, (track) => {
@@ -91,10 +102,13 @@ export function stopMicTracks(room) {
     }
 
     // Look at both audioTracks (map of TrackPublications) and all tracks
-    const pubs = [
-      ...lp.audioTracks.values(),
-      ...lp.tracks.values()
-    ];
+    const pubs = [];
+    if (lp.audioTracks && typeof lp.audioTracks.values === "function") {
+      pubs.push(...lp.audioTracks.values());
+    }
+    if (lp.tracks && typeof lp.tracks.values === "function") {
+      pubs.push(...lp.tracks.values());
+    }
 
     pubs.forEach((pub) => {
       const track = pub.track;
@@ -111,10 +125,22 @@ export function stopMicTracks(room) {
         }
       }
     });
+
+    // ✅ Fallback: stop cached mic reference if still active
+    if (currentMicTrack) {
+      try {
+        currentMicTrack.stop();
+        console.log("🎤 Cached mic track stopped.");
+      } catch (e) {
+        console.warn("⚠️ Could not stop cached mic track", e);
+      }
+      currentMicTrack = null;
+    }
   } catch (err) {
     console.warn("⚠️ stopMicTracks failed:", err);
   }
 }
+
 
 function generateHandle() {
   const adjectives = ["Fast", "Lonely", "Wild", "Rusty", "Silver", "Sleepy", "Lucky", "Rough", "Free", "Roamin"];
