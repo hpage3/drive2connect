@@ -70,15 +70,20 @@ export default function Home() {
 
   // --- Setup participant listeners
 // --- Setup participant listeners
+// --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
   // 0. always start fresh
   setParticipants([]);
+  console.log("👥 Participant list cleared at join/reshuffle");
 
-  // 1. authoritative snapshot from LiveKit
-  if (newRoom.participants && newRoom.participants.size > 0) {
-    setParticipants(Array.from(newRoom.participants.values()));
-  }
-  console.log("🔄 Participant list reset + snapshot loaded");
+  // 1. delayed initial snapshot (allow peers time to connect)
+  setTimeout(() => {
+    if (newRoom.participants) {
+      const list = Array.from(newRoom.participants.values());
+      setParticipants(list);
+      console.log("👥 Initial participant snapshot:", list.map(p => p.identity));
+    }
+  }, 2000);
 
   // 2. event-driven updates
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
@@ -93,15 +98,15 @@ function setupParticipantHandlers(newRoom) {
     );
   });
 
-  // 3. delayed resync (safety net for race conditions)
+  // 3. delayed resync safety net
   setTimeout(() => {
     if (newRoom.participants) {
-      setParticipants(Array.from(newRoom.participants.values()));
-      console.log("🔄 Participant list resynced after delay");
+      const list = Array.from(newRoom.participants.values());
+      setParticipants(list);
+      console.log("🔄 Participant list resynced:", list.map(p => p.identity));
     }
   }, 5000);
 }
-
 
   // --- Join Room
   async function handleJoin() {
