@@ -11,7 +11,7 @@ export async function joinRoom({ roomName, username, onConnected, onDisconnected
   const room = new Room();
   await room.connect(LK_WS_URL, token);
 
-  // ✅ Only declare micTrack once
+  // ✅ Publish mic track on join
   const micTrack = await createLocalAudioTrack();
   await room.localParticipant.publishTrack(micTrack);
 
@@ -47,8 +47,31 @@ export function disconnectRoom(room) {
   }
 }
 
+// ✅ Hardened mute toggle
 export async function toggleMute(room, isMuted) {
-  await room.localParticipant.setMicrophoneEnabled(isMuted);
+  if (!room || !room.localParticipant) return;
+
+  const lp = room.localParticipant;
+
+  // If no audio track exists and we are unmuting → create one
+  if (lp.audioTracks.size === 0 && !isMuted) {
+    try {
+      const micTrack = await createLocalAudioTrack();
+      await lp.publishTrack(micTrack);
+      console.log("🎤 New mic track published (unmuted).");
+    } catch (err) {
+      console.error("❌ Failed to create/publish mic track:", err);
+    }
+    return;
+  }
+
+  // Otherwise, just toggle
+  try {
+    await lp.setMicrophoneEnabled(!isMuted);
+    console.log(`🎤 Mic ${isMuted ? "unmuted" : "muted"}.`);
+  } catch (err) {
+    console.error("❌ toggleMute failed:", err);
+  }
 }
 
 export function sendReaction(room, type) {
@@ -56,8 +79,7 @@ export function sendReaction(room, type) {
   room.localParticipant.publishData(payload, { topic: "ui", reliable: true });
 }
 
-// ✅ NEW: stop and release microphone tracks
-// --- Stop mic tracks safely
+// ✅ Stop and release microphone tracks
 export function stopMicTracks(room) {
   try {
     if (!room) return;
