@@ -1,6 +1,7 @@
 // page.js (Updated)
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import { RoomEvent, connect } from "livekit-client";
 
 export default function Page({ username, token, url }) {
