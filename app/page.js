@@ -1,41 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Room } from "livekit-client";
-import { RoomEvent } from "livekit-client";
+import { RoomEvent, Room } from "livekit-client";
 
-export default function Page({ searchParams }) {
-  const [username, setUsername] = useState("");
-  const [participants, setParticipants] = useState([]);
+export default function Page() {
   const [room, setRoom] = useState(null);
-  const [audioTrack, setAudioTrack] = useState(null);
-
-  const audioRef = useRef();
-
-  useEffect(() => {
-    const name = localStorage.getItem("username") || generateRandomName();
-    localStorage.setItem("username", name);
-    setUsername(name);
-  }, []);
-
-  useEffect(() => {
-    if (!audioTrack || !audioRef.current) return;
-    const el = audioRef.current;
-    audioTrack.attach(el);
-    return () => {
-      audioTrack.detach(el);
-    };
-  }, [audioTrack]);
-
-  function playAudio(url) {
-    const audio = new Audio(url);
-    audio.play();
-  }
+  const [participants, setParticipants] = useState([]);
+  const [username, setUsername] = useState(null);
+  const audioRef = useRef(null);
 
   function setupParticipantHandlers(newRoom) {
-    setParticipants([]); // Clear old list
-
-    const selfId = newRoom.localParticipant?.identity;
+    const selfId = newRoom.localParticipant.identity;
 
     newRoom.on(RoomEvent.ParticipantConnected, (p) => {
       if (!p?.identity || p.identity === selfId) return;
@@ -54,8 +29,66 @@ export default function Page({ searchParams }) {
       setParticipants((prev) =>
         prev.filter((x) => x.identity !== p.identity)
       );
+
       console.log("👤 Participant left:", p.identity);
     });
+  }
+
+  async function handleJoin() {
+    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+    const stored = localStorage.getItem("username");
+    const username = stored ?? generateRandomUsername();
+    setUsername(username);
+
+    const tokenRes = await fetch(`/api/token?username=${username}`);
+    const { token } = await tokenRes.json();
+
+    const newRoom = new Room();
+    newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      if (track.kind === "audio") {
+        const el = audioRef.current;
+        track.attach(el);
+      }
+    });
+
+    await newRoom.connect(url, token);
+    setRoom(newRoom);
+
+    console.log("✅ Connected as", username);
+    setupParticipantHandlers(newRoom);
+    scheduleReshuffle();
+    playAudio("/RoameoRoam.mp3");
+  }
+
+  async function handleReshuffle() {
+    if (!room) return;
+
+    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+    const username = generateRandomUsername();
+    localStorage.setItem("username", username);
+    setUsername(username);
+
+    const tokenRes = await fetch(`/api/token?username=${username}`);
+    const { token } = await tokenRes.json();
+
+    room.disconnect();
+    console.log("❌ Disconnected");
+
+    const newRoom = new Room();
+    newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      if (track.kind === "audio") {
+        const el = audioRef.current;
+        track.attach(el);
+      }
+    });
+
+    await newRoom.connect(url, token);
+    setRoom(newRoom);
+
+    console.log("✅ Reconnected after reshuffle as", username);
+    setupParticipantHandlers(newRoom);
+    scheduleReshuffle();
+    playAudio("/RoameoRoam.mp3");
   }
 
   function scheduleReshuffle() {
@@ -72,98 +105,29 @@ export default function Page({ searchParams }) {
     }, 60000);
   }
 
-  async function handleJoin() {
-    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-    const tokenRes = await fetch(`/api/token?username=${username}`);
-    const { token } = await tokenRes.json();
-
-    const newRoom = new Room();
-    newRoom.on(RoomEvent.TrackSubscribed, (track) => {
-      if (track.kind === "audio") {
-        setAudioTrack(track);
-      }
-    });
-
-    await newRoom.connect(url, token);
-    console.log("✅ Connected as", username);
-
-    setRoom(newRoom);
-    setupParticipantHandlers(newRoom);
-    scheduleReshuffle();
-    playAudio("/RoameoRoam.mp3");
+  function generateRandomUsername() {
+    const adjectives = ["Fast", "Lucky", "Rusty", "Roamin"];
+    const nouns = ["Nomad", "Driver", "Drifter", "Rider"];
+    return (
+      adjectives[Math.floor(Math.random() * adjectives.length)] +
+      "-" +
+      nouns[Math.floor(Math.random() * nouns.length)]
+    );
   }
 
-  async function handleReshuffle() {
-    if (!room) return;
-
-    console.log("🔄 Performing reshuffle…");
-
-    const name = localStorage.getItem("username") || generateRandomName();
-    localStorage.setItem("username", name);
-    setUsername(name);
-
-    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-    const tokenRes = await fetch(`/api/token?username=${name}`);
-    const { token } = await tokenRes.json();
-
-    room.disconnect();
-    console.log("❌ Disconnected");
-
-    const newRoom = new Room();
-    newRoom.on(RoomEvent.TrackSubscribed, (track) => {
-      if (track.kind === "audio") {
-        setAudioTrack(track);
-      }
-    });
-
-    await newRoom.connect(url, token);
-    console.log("✅ Reconnected after reshuffle as", name);
-
-    setRoom(newRoom);
-    setupParticipantHandlers(newRoom);
-    scheduleReshuffle();
-    playAudio("/RoameoRoam.mp3");
+  function playAudio(url) {
+    const audio = new Audio(url);
+    audio.play();
   }
 
-  function generateRandomName() {
-    const adjectives = ["Lonely", "Rusty", "Happy", "Fast", "Lucky", "Roamin"];
-    const nouns = ["Driver", "Nomad", "Explorer", "Wanderer", "Rider", "Drifter"];
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    return `${adjective}-${noun}`;
-  }
+  useEffect(() => {
+    const stored = localStorage.getItem("username");
+    if (stored) setUsername(stored);
+  }, []);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-6">
-      {!room && (
-        <button
-          onClick={handleJoin}
-          className="bg-green-600 text-white text-lg px-6 py-2 rounded-full"
-        >
-          Join the Roam
-        </button>
-      )}
-
-      {room && (
-        <>
-          <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
-            You are <strong>{username}</strong>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 mt-4">
-            {participants.map((p) => (
-              <div
-                key={p.identity}
-                className="bg-black/50 text-white px-3 py-1 rounded"
-              >
-                {p.identity}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
+    <div>
       <audio ref={audioRef} />
-    </main>
+    </div>
   );
 }
