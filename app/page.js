@@ -70,35 +70,37 @@ export default function Home() {
 
   // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
-  // Clear on join/reshuffle
-  setParticipants([]);
-  console.log("👥 Participant list cleared at join/reshuffle");
+  setParticipants([]); // Clear old
 
-  // Initial snapshot (include self + remote peers)
+  // Wait for a bit to allow LiveKit to complete the handshake
   setTimeout(() => {
-    if (newRoom.localParticipant && newRoom.participants) {
-      const list = [
-        newRoom.localParticipant,
-        ...Array.from(newRoom.participants.values())
-      ];
-      setParticipants(list);
-      console.log("👥 Initial snapshot:", list.map(p => p.identity));
-    }
-  }, 2500); // wait a bit so remote peers are available
+    const everyone = [
+      newRoom.localParticipant,
+      ...Array.from(newRoom.participants.values()),
+    ];
+    setParticipants(everyone);
+    console.log("👥 Synced participants on join:", everyone.map(p => p.identity));
+  }, 1500); // Lower timeout to 1.5s — usually sufficient
 
-  // Event-driven updates
+  // ✅ Listen for future joins
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-    console.log("👥 Participant joined:", p.identity);
-    setParticipants((prev) => [...prev, p]);
+    console.log("👤 New participant joined:", p.identity);
+    setParticipants((prev) => {
+      // Avoid duplicate adds (just in case)
+      if (prev.find((x) => x.identity === p.identity)) return prev;
+      return [...prev, p];
+    });
   });
 
+  // ✅ Listen for disconnects
   newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-    console.log("👥 Participant left:", p.identity);
+    console.log("👤 Participant left:", p.identity);
     setParticipants((prev) =>
       prev.filter((x) => x.identity !== p.identity)
     );
   });
 }
+
 
   // --- Join Room
   async function handleJoin() {
