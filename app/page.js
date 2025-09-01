@@ -1,15 +1,39 @@
-// page.js (Updated)
+"use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import { RoomEvent, connect } from "livekit-client";
+import { useEffect, useRef, useState } from "react";
+import { Room } from "livekit-client";
+import { RoomEvent } from "livekit-client";
 
-export default function Page({ username, token, url }) {
-  const [room, setRoom] = useState(null);
+export default function Page({ searchParams }) {
+  const [username, setUsername] = useState("");
   const [participants, setParticipants] = useState([]);
+  const [room, setRoom] = useState(null);
+  const [audioTrack, setAudioTrack] = useState(null);
+
+  const audioRef = useRef();
+
+  useEffect(() => {
+    const name = localStorage.getItem("username") || generateRandomName();
+    localStorage.setItem("username", name);
+    setUsername(name);
+  }, []);
+
+  useEffect(() => {
+    if (!audioTrack || !audioRef.current) return;
+    const el = audioRef.current;
+    audioTrack.attach(el);
+    return () => {
+      audioTrack.detach(el);
+    };
+  }, [audioTrack]);
+
+  function playAudio(url) {
+    const audio = new Audio(url);
+    audio.play();
+  }
 
   function setupParticipantHandlers(newRoom) {
-    setParticipants([]); // Clear existing list
+    setParticipants([]); // Clear old list
 
     const selfId = newRoom.localParticipant?.identity;
 
@@ -34,24 +58,6 @@ export default function Page({ username, token, url }) {
     });
   }
 
-  function playAudio(src) {
-    const audio = new Audio(src);
-    audio.play().catch((e) => console.warn("Audio play failed", e));
-  }
-
-  async function handleJoin() {
-    const newRoom = await connect(url, token, {
-      autoSubscribe: true,
-    });
-
-    setRoom(newRoom);
-    console.log("✅ Connected as", newRoom.localParticipant.identity);
-
-    setupParticipantHandlers(newRoom);
-    scheduleReshuffle();
-    playAudio("/RoameoRoam.mp3");
-  }
-
   function scheduleReshuffle() {
     console.log("⏳ Scheduling reshuffle warning at 30s");
     setTimeout(() => {
@@ -66,46 +72,98 @@ export default function Page({ username, token, url }) {
     }, 60000);
   }
 
-  async function handleReshuffle() {
-    if (!room) return;
-    console.log("🔄 Performing reshuffle…");
+  async function handleJoin() {
+    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+    const tokenRes = await fetch(`/api/token?username=${username}`);
+    const { token } = await tokenRes.json();
 
-    room.disconnect();
-    console.log("❌ Disconnected");
-
-    const newRoom = await connect(url, token, {
-      autoSubscribe: true,
+    const newRoom = new Room();
+    newRoom.on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === "audio") {
+        setAudioTrack(track);
+      }
     });
 
-    setRoom(newRoom);
-    console.log("✅ Reconnected after reshuffle as", newRoom.localParticipant.identity);
+    await newRoom.connect(url, token);
+    console.log("✅ Connected as", username);
 
+    setRoom(newRoom);
     setupParticipantHandlers(newRoom);
     scheduleReshuffle();
     playAudio("/RoameoRoam.mp3");
   }
 
-  useEffect(() => {
-    handleJoin();
-    return () => {
-      room?.disconnect();
-    };
-  }, []);
+  async function handleReshuffle() {
+    if (!room) return;
+
+    console.log("🔄 Performing reshuffle…");
+
+    const name = localStorage.getItem("username") || generateRandomName();
+    localStorage.setItem("username", name);
+    setUsername(name);
+
+    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+    const tokenRes = await fetch(`/api/token?username=${name}`);
+    const { token } = await tokenRes.json();
+
+    room.disconnect();
+    console.log("❌ Disconnected");
+
+    const newRoom = new Room();
+    newRoom.on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === "audio") {
+        setAudioTrack(track);
+      }
+    });
+
+    await newRoom.connect(url, token);
+    console.log("✅ Reconnected after reshuffle as", name);
+
+    setRoom(newRoom);
+    setupParticipantHandlers(newRoom);
+    scheduleReshuffle();
+    playAudio("/RoameoRoam.mp3");
+  }
+
+  function generateRandomName() {
+    const adjectives = ["Lonely", "Rusty", "Happy", "Fast", "Lucky", "Roamin"];
+    const nouns = ["Driver", "Nomad", "Explorer", "Wanderer", "Rider", "Drifter"];
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return `${adjective}-${noun}`;
+  }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
-        You are <strong>{username}</strong>
-      </div>
-
-      {participants.map((p) => (
-        <div
-          key={p.identity}
-          className="bg-black/50 text-white px-3 py-1 rounded"
+    <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-6">
+      {!room && (
+        <button
+          onClick={handleJoin}
+          className="bg-green-600 text-white text-lg px-6 py-2 rounded-full"
         >
-          {p.identity}
-        </div>
-      ))}
-    </div>
+          Join the Roam
+        </button>
+      )}
+
+      {room && (
+        <>
+          <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
+            You are <strong>{username}</strong>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            {participants.map((p) => (
+              <div
+                key={p.identity}
+                className="bg-black/50 text-white px-3 py-1 rounded"
+              >
+                {p.identity}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <audio ref={audioRef} />
+    </main>
   );
 }
