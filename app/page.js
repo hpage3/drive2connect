@@ -46,7 +46,7 @@ export default function Home() {
       console.log("⚠️ No participants yet to resync");
       return;
     }
-    setParticipants(Array.from(room.participants.values()));
+    Array.from((newRoom.participants || new Map()).values()));
     console.log("🔄 Participant list resynced");
   }
 
