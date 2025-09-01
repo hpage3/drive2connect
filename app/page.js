@@ -32,23 +32,22 @@ export default function Home() {
       .catch((err) => console.error("❌ Audio play failed:", src, err));
   }
 
-  // --- Manage Participants
-  function handleParticipantJoin(p) {
-    setParticipants((prev) => [...prev, p]);
-  }
-
-  function handleParticipantLeave(p) {
-    setParticipants((prev) => prev.filter((x) => x.identity !== p.identity));
-  }
-
+ 
   function resyncParticipants(room) {
-    if (!room || !room.participants) {
-      console.log("⚠️ No participants yet to resync");
-      return;
-    }
-    Array.from((newRoom.participants || new Map()).values());
-    console.log("🔄 Participant list resynced");
+  if (!room || !room.participants) {
+    console.log("⚠️ No participants yet to resync");
+    return;
   }
+
+  const selfId = room.localParticipant?.identity;
+
+  const remote = Array.from(room.participants?.values() || []).filter(
+    (p) => p.identity !== selfId
+  );
+
+  setParticipants(remote);
+  console.log("🔄 Participant list resynced:", remote.map(p => p.identity));
+}
 
   // --- Schedule reshuffle timers
   function scheduleReshuffle() {
@@ -78,30 +77,29 @@ function setupParticipantHandlers(newRoom) {
       ? Array.from(newRoom.participants.values())
       : [];
 
-    const everyone = [
-      newRoom.localParticipant,
-      ...remote,
-    ];
+	const selfId = newRoom.localParticipant?.identity;
 
-    setParticipants(everyone);
-    console.log("👥 Synced participants on join:", everyone.map(p => p.identity));
+	const remoteOnly = remote.filter((p) => p.identity !== selfId);
+
+	setParticipants(remoteOnly);
+	console.log("👥 Synced participants on join:", remoteOnly.map(p => p.identity));
+
   }, 1500);
 
   // 🧱 Safeguard all handlers
 
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-    if (!p?.identity) {
-      console.warn("⚠️ Ignoring invalid participant (no identity)", p);
-      return;
-    }
+  const selfId = newRoom.localParticipant?.identity;
+  if (!p?.identity || p.identity === selfId) {
+    return;
+  }
 
-    setParticipants((prev) => {
-      // Prevent duplicates
-      if (prev.some((x) => x.identity === p.identity)) return prev;
-      return [...prev, p];
-    });
-    console.log("👤 New participant joined:", p.identity);
+  setParticipants((prev) => {
+    if (prev.some((x) => x.identity === p.identity)) return prev;
+    return [...prev, p];
   });
+  console.log("👤 New participant joined:", p.identity);
+});
 
   newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
     if (!p?.identity) return;
@@ -132,6 +130,7 @@ function setupParticipantHandlers(newRoom) {
           setupParticipantHandlers(newRoom);
           scheduleReshuffle();
           playAudio("/RoameoRoam.mp3");
+		  setTimeout(() => resyncParticipants(newRoom), 2000);
         },
         onDisconnected: () => {
 		  console.log("❌ Disconnected");
@@ -190,6 +189,7 @@ function setupParticipantHandlers(newRoom) {
 
           setupParticipantHandlers(newRoom);
           scheduleReshuffle();
+		  setTimeout(() => resyncParticipants(newRoom), 2000); 
         },
         onDisconnected: () => {
 		  console.log("❌ Disconnected after reshuffle");
