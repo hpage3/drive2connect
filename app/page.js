@@ -72,32 +72,44 @@ export default function Home() {
 function setupParticipantHandlers(newRoom) {
   setParticipants([]); // Clear old
 
-  // Wait for a bit to allow LiveKit to complete the handshake
+  // Initial Snapshot (after short delay)
   setTimeout(() => {
+    const remote = newRoom.participants
+      ? Array.from(newRoom.participants.values())
+      : [];
+
     const everyone = [
       newRoom.localParticipant,
-      ...Array.from(newRoom.participants.values()),
+      ...remote,
     ];
+
     setParticipants(everyone);
     console.log("👥 Synced participants on join:", everyone.map(p => p.identity));
-  }, 1500); // Lower timeout to 1.5s — usually sufficient
+  }, 1500);
 
-  // ✅ Listen for future joins
+  // 🧱 Safeguard all handlers
+
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-    console.log("👤 New participant joined:", p.identity);
+    if (!p?.identity) {
+      console.warn("⚠️ Ignoring invalid participant (no identity)", p);
+      return;
+    }
+
     setParticipants((prev) => {
-      // Avoid duplicate adds (just in case)
-      if (prev.find((x) => x.identity === p.identity)) return prev;
+      // Prevent duplicates
+      if (prev.some((x) => x.identity === p.identity)) return prev;
       return [...prev, p];
     });
+    console.log("👤 New participant joined:", p.identity);
   });
 
-  // ✅ Listen for disconnects
   newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-    console.log("👤 Participant left:", p.identity);
+    if (!p?.identity) return;
+
     setParticipants((prev) =>
       prev.filter((x) => x.identity !== p.identity)
     );
+    console.log("👤 Participant left:", p.identity);
   });
 }
 
