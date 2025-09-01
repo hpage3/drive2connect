@@ -1,133 +1,275 @@
 "use client";
+import { useState, useEffect, useRef } from "react";
+import {
+  joinRoom,
+  disconnectRoom,
+  toggleMute,
+  sendReaction,
+} from "./lib/voice/room";
+import { initMap } from "./lib/map/map";
+import Controls from "./components/Controls";
+import Status from "./components/Status";
+import { RoomEvent } from "livekit-client";
 
-import { useEffect, useRef, useState } from "react";
-import { RoomEvent, Room } from "livekit-client";
-
-export default function Page() {
+export default function Home() {
+  const [roomName] = useState("lobby");
   const [room, setRoom] = useState(null);
+  const [username, setUsername] = useState("");
   const [participants, setParticipants] = useState([]);
-  const [username, setUsername] = useState(null);
-  const audioRef = useRef(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [connectDisabled, setConnectDisabled] = useState(true);
+  const [connectText, setConnectText] = useState("Getting Location…");
+  const [status, setStatus] = useState("");
 
-  function setupParticipantHandlers(newRoom) {
-    const selfId = newRoom.localParticipant.identity;
+  const reshuffleTimer = useRef(null);
+  const warningTimer = useRef(null);
 
-    newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-      if (!p?.identity || p.identity === selfId) return;
-
-      setParticipants((prev) => {
-        if (prev.some((x) => x.identity === p.identity)) return prev;
-        return [...prev, p];
-      });
-
-      console.log("👤 New participant joined:", p.identity);
-    });
-
-    newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-      if (!p?.identity) return;
-
-      setParticipants((prev) =>
-        prev.filter((x) => x.identity !== p.identity)
-      );
-
-      console.log("👤 Participant left:", p.identity);
-    });
+  // --- Audio helper
+  function playAudio(src) {
+    const audio = new Audio(src);
+    audio.play()
+      .then(() => console.log("▶️ Playing:", src))
+      .catch((err) => console.error("❌ Audio play failed:", src, err));
   }
 
-  async function handleJoin() {
-    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-    const stored = localStorage.getItem("username");
-    const username = stored ?? generateRandomUsername();
-    setUsername(username);
-
-    const tokenRes = await fetch(`/api/token?username=${username}`);
-    const { token } = await tokenRes.json();
-
-    const newRoom = new Room();
-    newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-      if (track.kind === "audio") {
-        const el = audioRef.current;
-        track.attach(el);
-      }
-    });
-
-    await newRoom.connect(url, token);
-    setRoom(newRoom);
-
-    console.log("✅ Connected as", username);
-    setupParticipantHandlers(newRoom);
-    scheduleReshuffle();
-    playAudio("/RoameoRoam.mp3");
+  // --- Manage Participants
+  function handleParticipantJoin(p) {
+    setParticipants((prev) => [...prev, p]);
   }
 
-  async function handleReshuffle() {
-    if (!room) return;
-
-    const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
-    const username = generateRandomUsername();
-    localStorage.setItem("username", username);
-    setUsername(username);
-
-    const tokenRes = await fetch(`/api/token?username=${username}`);
-    const { token } = await tokenRes.json();
-
-    room.disconnect();
-    console.log("❌ Disconnected");
-
-    const newRoom = new Room();
-    newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-      if (track.kind === "audio") {
-        const el = audioRef.current;
-        track.attach(el);
-      }
-    });
-
-    await newRoom.connect(url, token);
-    setRoom(newRoom);
-
-    console.log("✅ Reconnected after reshuffle as", username);
-    setupParticipantHandlers(newRoom);
-    scheduleReshuffle();
-    playAudio("/RoameoRoam.mp3");
+  function handleParticipantLeave(p) {
+    setParticipants((prev) => prev.filter((x) => x.identity !== p.identity));
   }
 
+  function resyncParticipants(room) {
+    if (!room || !room.participants) {
+      console.log("⚠️ No participants yet to resync");
+      return;
+    }
+    setParticipants(Array.from(room.participants.values()));
+    console.log("🔄 Participant list resynced");
+  }
+
+  // --- Schedule reshuffle timers
   function scheduleReshuffle() {
+    if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+    if (warningTimer.current) clearTimeout(warningTimer.current);
+
     console.log("⏳ Scheduling reshuffle warning at 30s");
-    setTimeout(() => {
+    warningTimer.current = setTimeout(() => {
       console.log("⚠️ Reshuffle warning fired");
       playAudio("/Reshuffle.mp3");
-    }, 30000);
+    }, 30 * 1000);
 
     console.log("⏳ Scheduling reshuffle at 60s");
-    setTimeout(() => {
+    reshuffleTimer.current = setTimeout(() => {
       console.log("🔄 Reshuffle triggered");
       handleReshuffle();
-    }, 60000);
+    }, 60 * 1000);
   }
 
-  function generateRandomUsername() {
-    const adjectives = ["Fast", "Lucky", "Rusty", "Roamin"];
-    const nouns = ["Nomad", "Driver", "Drifter", "Rider"];
-    return (
-      adjectives[Math.floor(Math.random() * adjectives.length)] +
-      "-" +
-      nouns[Math.floor(Math.random() * nouns.length)]
+  // --- Setup participant listeners
+function setupParticipantHandlers(newRoom) {
+  // Clear on join/reshuffle
+  setParticipants([]);
+  console.log("👥 Participant list cleared at join/reshuffle");
+
+  // Initial snapshot (include self + remote peers)
+  setTimeout(() => {
+    if (newRoom.localParticipant && newRoom.participants) {
+      const list = [
+        newRoom.localParticipant,
+        ...Array.from(newRoom.participants.values())
+      ];
+      setParticipants(list);
+      console.log("👥 Initial snapshot:", list.map(p => p.identity));
+    }
+  }, 2500); // wait a bit so remote peers are available
+
+  // Event-driven updates
+  newRoom.on(RoomEvent.ParticipantConnected, (p) => {
+    console.log("👥 Participant joined:", p.identity);
+    setParticipants((prev) => [...prev, p]);
+  });
+
+  newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+    console.log("👥 Participant left:", p.identity);
+    setParticipants((prev) =>
+      prev.filter((x) => x.identity !== p.identity)
     );
+  });
+}
+
+  // --- Join Room
+  async function handleJoin() {
+    try {
+      await joinRoom({
+        roomName,
+        username,
+        onConnected: (newRoom, handle) => {
+          setRoom(newRoom);
+          setUsername((prev) => prev || handle);
+          setConnectText("Connected");
+          setConnectDisabled(true);
+          setIsMuted(false);
+
+          console.log("✅ Connected as", handle);
+
+          setupParticipantHandlers(newRoom);
+          scheduleReshuffle();
+          playAudio("/RoameoRoam.mp3");
+        },
+        onDisconnected: () => {
+		  console.log("❌ Disconnected");
+		  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+		  if (warningTimer.current) clearTimeout(warningTimer.current);
+		  setRoom(null);
+		  setParticipants([]);
+		  setConnectText("Connect");
+		  setConnectDisabled(false);
+		  setIsMuted(false);
+		  // ⚠️ do NOT clear username here — preserve across reshuffles
+		},
+
+      });
+    } catch (err) {
+      console.error("Voice connection failed:", err);
+      setStatus("Voice connection failed");
+      setConnectDisabled(false);
+      setConnectText("Connect");
+    }
   }
 
-  function playAudio(url) {
-    const audio = new Audio(url);
-    audio.play();
+  // --- Disconnect Room
+  function handleDisconnect() {
+    console.log("👋 Manual disconnect");
+    if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+    if (warningTimer.current) clearTimeout(warningTimer.current);
+    disconnectRoom(room);
+    setRoom(null);
+    setParticipants([]);
+    setConnectDisabled(false);
+    setConnectText("Connect");
+    setIsMuted(false);
   }
 
+  // --- Reshuffle
+  async function handleReshuffle() {
+    console.log("🔄 Performing reshuffle…");
+    try {
+      disconnectRoom(room);
+      await new Promise((r) => setTimeout(r, 500));
+
+      playAudio("/RoameoRoam.mp3");
+
+      await joinRoom({
+        roomName,
+        username,
+        onConnected: (newRoom, handle) => {
+          console.log("✅ Reconnected after reshuffle as", handle);
+          setRoom(newRoom);
+          setUsername((prev) => prev || handle);
+          setConnectText("Connected");
+          setConnectDisabled(true);
+          setIsMuted(false);
+          setStatus("");
+
+          setupParticipantHandlers(newRoom);
+          scheduleReshuffle();
+        },
+        onDisconnected: () => {
+		  console.log("❌ Disconnected after reshuffle");
+		  setRoom(null);
+		  setParticipants([]);
+		  setConnectText("Connect");
+		  setConnectDisabled(false);
+		  setIsMuted(false);
+		  // ⚠️ do NOT clear username here either
+		},
+      });
+    } catch (err) {
+      console.error("❌ Reshuffle failed:", err);
+      setStatus("Reshuffle failed");
+    }
+  }
+
+  // --- Toggle Mute
+  async function handleMuteToggle() {
+    if (!room) return;
+    await toggleMute(room, isMuted);
+    setIsMuted(!isMuted);
+  }
+
+  // --- Reactions
+  function handleReaction(type) {
+    if (!room) return;
+    sendReaction(room, type);
+  }
+
+  // --- Map Init
   useEffect(() => {
-    const stored = localStorage.getItem("username");
-    if (stored) setUsername(stored);
+    initMap("map", () => {
+      setConnectDisabled(false);
+      setConnectText("Connect");
+    });
   }, []);
 
   return (
-    <div>
-      <audio ref={audioRef} />
+    <div className="relative w-full h-screen">
+      <div id="map" className="absolute top-0 left-0 w-full h-full" />
+
+      {/* User + Participants */}
+      {room && (
+        <div className="absolute top-5 left-5 z-50 space-y-2">
+          <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
+            You are <strong>{username}</strong>
+          </div>
+          {participants.map((p) => (
+            <div
+              key={p.identity}
+              className="bg-black/50 text-white px-3 py-1 rounded"
+            >
+              {p.identity}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Connect / Disconnect */}
+      {!room && (
+        <button
+          onClick={handleJoin}
+          disabled={connectDisabled}
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 
+                     px-6 py-3 rounded-xl font-bold z-50 
+                     bg-green-600 text-white hover:bg-green-700"
+        >
+          {connectText}
+        </button>
+      )}
+
+      {room && (
+        <button
+          onClick={handleDisconnect}
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 
+                     px-6 py-3 rounded-xl font-bold z-50 
+                     bg-red-600 text-white hover:bg-red-700"
+        >
+          Disconnect
+        </button>
+      )}
+
+      {/* Controls */}
+      {room && (
+        <Controls
+          isMuted={isMuted}
+          onMuteToggle={handleMuteToggle}
+          onReaction={handleReaction}
+        />
+      )}
+
+      {/* Status */}
+      {status && <Status message={status} />}
     </div>
   );
 }
