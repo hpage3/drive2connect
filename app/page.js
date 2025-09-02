@@ -70,34 +70,33 @@ export default function Home() {
 
   // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
-  // Clear on join/reshuffle
   setParticipants([]);
   console.log("👥 Participant list cleared at join/reshuffle");
 
-  // Initial snapshot (include self + remote peers)
-  setTimeout(() => {
-    if (newRoom.localParticipant && newRoom.participants) {
-      const list = [
-        newRoom.localParticipant,
-        ...Array.from(newRoom.participants.values())
-      ];
-      setParticipants(list);
-      console.log("👥 Initial snapshot:", list.map(p => p.identity));
-    }
-  }, 2500); // wait a bit so remote peers are available
+  const updateParticipantList = () => {
+    const remotePeers = Array.from(newRoom.participants.values());
+    const fullList = [newRoom.localParticipant, ...remotePeers];
+    setParticipants(fullList);
+    console.log("👥 Synced list:", fullList.map(p => p.identity));
+  };
 
-  // Event-driven updates
+  // Live sync on peer events
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
     console.log("👥 Participant joined:", p.identity);
-    setParticipants((prev) => [...prev, p]);
+    updateParticipantList(); // 🔄 force refresh
   });
 
   newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
     console.log("👥 Participant left:", p.identity);
-    setParticipants((prev) =>
-      prev.filter((x) => x.identity !== p.identity)
-    );
+    updateParticipantList(); // 🔄 force refresh
   });
+
+  // Also refresh after a short delay to catch stale state
+  setTimeout(updateParticipantList, 1500);
+
+  // Optional: refresh every 10s for safety
+  const interval = setInterval(updateParticipantList, 10000);
+  newRoom.once(RoomEvent.Disconnected, () => clearInterval(interval));
 }
 
   // --- Join Room
