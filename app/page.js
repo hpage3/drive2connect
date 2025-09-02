@@ -127,16 +127,17 @@ async function handleJoin() {
         playAudio("/RoameoRoam.mp3");
       },
       onDisconnected: () => {
-        console.log("❌ Disconnected");
-        clearTimeouts();
-        setRoom(null);
-        setLocalParticipant(null);
-        setParticipants([]);
-        setConnectText("Connect");
-        setConnectDisabled(false);
-        setIsMuted(false);
-        // ⚠️ do NOT clear username — sticky
-      },
+		  console.log("❌ Disconnected");
+		  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+		  if (warningTimer.current) clearTimeout(warningTimer.current);
+		  setRoom(null);
+		  setLocalParticipant(null);
+		  setParticipants([]);
+		  setConnectText("Connect");
+		  setConnectDisabled(false);
+		  setIsMuted(false);
+		}
+
     });
   } catch (err) {
     console.error("Voice connection failed:", err);
@@ -233,21 +234,18 @@ async function handleJoin() {
         <div className="absolute top-5 left-5 z-50 space-y-2">
           <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
             {localParticipant && (
-				<div className="bg-black/70 text-white px-4 py-2 rounded-lg">
-				  You are <strong>{username || localParticipant.identity}</strong>
-				</div>
-)}
-          </div>
-          {participants.map((p) => (
-            <div
-              key={p.identity}
-              className="bg-black/50 text-white px-3 py-1 rounded"
-            >
-              {p.identity}
-            </div>
-          ))}
-        </div>
-      )}
+		  <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
+			You are <strong>{username || localParticipant.identity}</strong>
+		  </div>
+		)}
+		{participants.map((p) => (
+		  <div
+			key={p.identity}
+			className="bg-black/50 text-white px-3 py-1 rounded"
+		  >
+			{p.identity}
+		  </div>
+		))}
 
       {/* Connect / Disconnect */}
       {!room && (
