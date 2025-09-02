@@ -157,7 +157,7 @@ function setupParticipantHandlers(newRoom) {
   async function handleReshuffle() {
   console.log("🔄 Performing reshuffle…");
   try {
-    // Disconnect gracefully but don't clear state yet
+    // Disconnect old room (don’t clear participants here)
     disconnectRoom(room);
 
     await new Promise((r) => setTimeout(r, 500));
@@ -174,13 +174,18 @@ function setupParticipantHandlers(newRoom) {
         setIsMuted(false);
         setStatus("");
 
-        setupParticipantHandlers(newRoom); // this will repopulate remotes
+        // ✅ Fresh snapshot of current participants
+        setParticipants(Array.from(newRoom.participants.values()));
+
+        // ✅ Then wire up event-based updates
+        setupParticipantHandlers(newRoom);
+
         scheduleReshuffle();
       },
       onDisconnected: () => {
         console.log("❌ Disconnected after reshuffle");
         setRoom(null);
-        setParticipants([]);
+        setParticipants([]); // only clear if really gone
         setConnectText("Connect");
         setConnectDisabled(false);
         setIsMuted(false);
