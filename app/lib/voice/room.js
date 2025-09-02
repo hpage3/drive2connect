@@ -63,30 +63,39 @@ export async function toggleMute(room, isMuted) {
     }
 
     if (isMuted) {
-      // 🔊 UNMUTE: Create and publish new mic track
+      // 🔊 UNMUTE — Create and publish new mic track
       currentMicTrack = await createLocalAudioTrack();
       await lp.publishTrack(currentMicTrack);
       console.log("🎤 Mic re-published (unmuted)");
     } else {
-      // 🔇 MUTE: Unpublish and stop all audio tracks
-      const pubs = [...lp.audioTracks.values()];
+      // 🔇 MUTE — Fully unpublish and stop existing mic tracks
 
-      for (const pub of pubs) {
-        const track = pub.track;
-        if (track?.kind === "audio") {
-          try {
-            await lp.unpublishTrack(track); // ✅ Unpublish first
-            if (track.mediaStreamTrack?.readyState !== "ended") {
-              track.stop(); // ✅ Then stop
-              console.log("🎤 Mic track stopped and unpublished");
-            }
-          } catch (e) {
-            console.warn("⚠️ Could not unpublish/stop track", e);
+      const pubs = [];
+
+      if (lp.audioTracks && typeof lp.audioTracks.values === "function") {
+        for (const pub of lp.audioTracks.values()) {
+          if (pub?.track?.kind === "audio") {
+            pubs.push(pub);
           }
         }
       }
 
-      // ✅ Clear mic reference so we don't reuse it
+      if (pubs.length === 0) {
+        console.warn("⚠️ No audio publications to mute");
+      }
+
+      for (const pub of pubs) {
+        const track = pub.track;
+        try {
+          await lp.unpublishTrack(track);
+          track.stop();
+          console.log("🎤 Mic track stopped and unpublished");
+        } catch (e) {
+          console.warn("⚠️ Failed to unpublish/stop track", e);
+        }
+      }
+
+      // 🧹 Clear reference
       currentMicTrack = null;
       console.log("🎤 Mic muted");
     }
@@ -94,7 +103,6 @@ export async function toggleMute(room, isMuted) {
     console.warn("⚠️ toggleMute failed:", err);
   }
 }
-
 
 
 // ✅ Stop and release microphone tracks
