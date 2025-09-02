@@ -70,46 +70,34 @@ export default function Home() {
 
   // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
-  setParticipants([]);
-  console.log("👥 Participant list cleared at join/reshuffle");
-
-  const updateParticipantList = () => {
-    const participantMap = newRoom.participants;
-
-    if (!participantMap || typeof participantMap.values !== "function") {
-      console.warn("⚠️ Cannot update participant list — participants not ready yet:", participantMap);
-      return;
-    }
-
-    const remotePeers = Array.from(participantMap.values());
-    const fullList = [newRoom.localParticipant, ...remotePeers];
-    setParticipants(fullList);
-    console.log("👥 Synced list:", fullList.map((p) => p.identity));
+  // Initialize with local + remote participants
+  const syncParticipants = () => {
+    const remotes = Array.from(newRoom.participants.values());
+    setParticipants([newRoom.localParticipant, ...remotes]);
   };
 
-  // 🔁 Retry until participants is available
-  const retryInterval = setInterval(() => {
-    const p = newRoom.participants;
-    if (p && typeof p.values === "function") {
-      updateParticipantList();
-      clearInterval(retryInterval);
-    }
-  }, 500);
+  // Initial sync
+  syncParticipants();
 
-  // Live updates
+  // Event listeners
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
     console.log("👥 Participant joined:", p.identity);
-    updateParticipantList();
+    syncParticipants();
   });
 
   newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
     console.log("👥 Participant left:", p.identity);
-    updateParticipantList();
+    syncParticipants();
   });
 
-  // 🔄 Safety fallback
-  const interval = setInterval(updateParticipantList, 10000);
-  newRoom.once(RoomEvent.Disconnected, () => clearInterval(interval));
+  // Optionally: track updates (muted/unmuted, metadata changes, etc.)
+  newRoom.on(RoomEvent.ParticipantMetadataChanged, syncParticipants);
+  newRoom.on(RoomEvent.ActiveSpeakersChanged, syncParticipants);
+
+  // Clean up when room disconnects
+  newRoom.once(RoomEvent.Disconnected, () => {
+    setParticipants([]);
+  });
 }
 
   // --- Join Room
