@@ -155,43 +155,42 @@ function setupParticipantHandlers(newRoom) {
 
   // --- Reshuffle
   async function handleReshuffle() {
-    console.log("🔄 Performing reshuffle…");
-    try {
-      disconnectRoom(room);
-      await new Promise((r) => setTimeout(r, 500));
+  console.log("🔄 Performing reshuffle…");
+  try {
+    // Disconnect gracefully but don't clear state yet
+    disconnectRoom(room);
 
-      playAudio("/RoameoRoam.mp3");
+    await new Promise((r) => setTimeout(r, 500));
 
-      await joinRoom({
-        roomName,
-        username,
-        onConnected: (newRoom, handle) => {
-          console.log("✅ Reconnected after reshuffle as", handle);
-          setRoom(newRoom);
-          setUsername((prev) => prev || handle);
-          setConnectText("Connected");
-          setConnectDisabled(true);
-          setIsMuted(false);
-          setStatus("");
+    await joinRoom({
+      roomName,
+      username,
+      onConnected: (newRoom, handle) => {
+        console.log("✅ Reconnected after reshuffle as", handle);
+        setRoom(newRoom);
+        setUsername((prev) => prev || handle);
+        setConnectText("Connected");
+        setConnectDisabled(true);
+        setIsMuted(false);
+        setStatus("");
 
-          setupParticipantHandlers(newRoom);
-          scheduleReshuffle();
-        },
-        onDisconnected: () => {
-		  console.log("❌ Disconnected after reshuffle");
-		  setRoom(null);
-		  setParticipants([]);
-		  setConnectText("Connect");
-		  setConnectDisabled(false);
-		  setIsMuted(false);
-		  // ⚠️ do NOT clear username here either
-		},
-      });
-    } catch (err) {
-      console.error("❌ Reshuffle failed:", err);
-      setStatus("Reshuffle failed");
-    }
+        setupParticipantHandlers(newRoom); // this will repopulate remotes
+        scheduleReshuffle();
+      },
+      onDisconnected: () => {
+        console.log("❌ Disconnected after reshuffle");
+        setRoom(null);
+        setParticipants([]);
+        setConnectText("Connect");
+        setConnectDisabled(false);
+        setIsMuted(false);
+      },
+    });
+  } catch (err) {
+    console.error("❌ Reshuffle failed:", err);
+    setStatus("Reshuffle failed");
   }
+}
 
   // --- Toggle Mute
   async function handleMuteToggle() {
