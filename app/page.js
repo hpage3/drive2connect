@@ -248,28 +248,24 @@ async function handleJoin() {
 		))}
 
       {/* Connect / Disconnect */}
-      {!room && (
-        <button
-          onClick={handleJoin}
-          disabled={connectDisabled}
-          className="absolute bottom-5 left-1/2 -translate-x-1/2 
-                     px-6 py-3 rounded-xl font-bold z-50 
-                     bg-green-600 text-white hover:bg-green-700"
-        >
-          {connectText}
-        </button>
-      )}
-
       {room && (
-        <button
-          onClick={handleDisconnect}
-          className="absolute bottom-5 left-1/2 -translate-x-1/2 
-                     px-6 py-3 rounded-xl font-bold z-50 
-                     bg-red-600 text-white hover:bg-red-700"
-        >
-          Disconnect
-        </button>
-      )}
+		  <div className="absolute top-5 left-5 z-50 space-y-2">
+			{localParticipant && (
+			  <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
+				You are <strong>{username || localParticipant.identity}</strong>
+			  </div>
+			)}
+			{participants.map((p) => (
+			  <div
+				key={p.identity}
+				className="bg-black/50 text-white px-3 py-1 rounded"
+			  >
+				{p.identity}
+			  </div>
+			))}
+		  </div>
+		)}
+
 
       {/* Controls */}
       {room && (
