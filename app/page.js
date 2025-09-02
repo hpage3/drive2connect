@@ -70,35 +70,33 @@ export default function Home() {
 
   // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
-  // Initialize with local + remote participants
   const syncParticipants = () => {
-    const remotes = Array.from(newRoom.participants.values());
-    setParticipants([newRoom.localParticipant, ...remotes]);
+    if (!newRoom.localParticipant) return;
+
+    const remotePeers = newRoom.participants
+      ? Array.from(newRoom.participants.values())
+      : [];
+
+    setParticipants([newRoom.localParticipant, ...remotePeers]);
+    console.log(
+      "👥 Synced list:",
+      [newRoom.localParticipant, ...remotePeers].map((p) => p.identity)
+    );
   };
 
-  // Initial sync
+  // Initial sync (safe-guarded)
   syncParticipants();
 
   // Event listeners
-  newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-    console.log("👥 Participant joined:", p.identity);
-    syncParticipants();
-  });
+  newRoom.on(RoomEvent.ParticipantConnected, () => syncParticipants());
+  newRoom.on(RoomEvent.ParticipantDisconnected, () => syncParticipants());
+  newRoom.on(RoomEvent.ParticipantMetadataChanged, () => syncParticipants());
+  newRoom.on(RoomEvent.ActiveSpeakersChanged, () => syncParticipants());
 
-  newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-    console.log("👥 Participant left:", p.identity);
-    syncParticipants();
-  });
-
-  // Optionally: track updates (muted/unmuted, metadata changes, etc.)
-  newRoom.on(RoomEvent.ParticipantMetadataChanged, syncParticipants);
-  newRoom.on(RoomEvent.ActiveSpeakersChanged, syncParticipants);
-
-  // Clean up when room disconnects
-  newRoom.once(RoomEvent.Disconnected, () => {
-    setParticipants([]);
-  });
+  // Clean up
+  newRoom.once(RoomEvent.Disconnected, () => setParticipants([]));
 }
+
 
   // --- Join Room
   async function handleJoin() {
