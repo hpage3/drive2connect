@@ -70,27 +70,35 @@ export default function Home() {
 
   // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
-  const syncParticipants = () => {
-    const remotePeers = newRoom.participants
-      ? Array.from(newRoom.participants.values())
-      : [];
+  // Start fresh
+  setParticipants([]);
 
-    setParticipants(remotePeers);
-    console.log("👥 Synced list (remotes only):", remotePeers.map((p) => p.identity));
-  };
+  // Initialize from current remote participants
+  if (newRoom.participants) {
+    setParticipants(Array.from(newRoom.participants.values()));
+  }
 
-  // Initial sync (safe-guarded)
-  syncParticipants();
+  // Add when someone joins
+  newRoom.on(RoomEvent.ParticipantConnected, (p) => {
+    console.log("👥 Participant joined:", p.identity);
+    setParticipants((prev) => [...prev, p]);
+  });
 
-  // Event listeners
-  newRoom.on(RoomEvent.ParticipantConnected, () => syncParticipants());
-  newRoom.on(RoomEvent.ParticipantDisconnected, () => syncParticipants());
-  newRoom.on(RoomEvent.ParticipantMetadataChanged, () => syncParticipants());
-  newRoom.on(RoomEvent.ActiveSpeakersChanged, () => syncParticipants());
+  // Remove when someone leaves
+  newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+    console.log("👥 Participant left:", p.identity);
+    setParticipants((prev) =>
+      prev.filter((x) => x.identity !== p.identity)
+    );
+  });
 
-  // Clean up
-  newRoom.once(RoomEvent.Disconnected, () => setParticipants([]));
+  // Cleanup on disconnect
+  newRoom.once(RoomEvent.Disconnected, () => {
+    console.log("👥 Room disconnected, clearing participants");
+    setParticipants([]);
+  });
 }
+
 
   // --- Join Room
   async function handleJoin() {
