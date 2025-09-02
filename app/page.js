@@ -14,8 +14,9 @@ import { RoomEvent } from "livekit-client";
 export default function Home() {
   const [roomName] = useState("lobby");
   const [room, setRoom] = useState(null);
-  const [username, setUsername] = useState("");
-  const [participants, setParticipants] = useState([]);
+  const [username, setUsername] = useState("");           // preferred/sticky nameconst [localParticipant, setLocalParticipant] = useState(null); // actual LiveKit object
+  const [participants, setParticipants] = useState([]);   // remotes only
+
   const [isMuted, setIsMuted] = useState(false);
   const [connectDisabled, setConnectDisabled] = useState(true);
   const [connectText, setConnectText] = useState("Getting Location…");
@@ -101,44 +102,49 @@ function setupParticipantHandlers(newRoom) {
 
 
   // --- Join Room
-  async function handleJoin() {
-    try {
-      await joinRoom({
-        roomName,
-        username,
-        onConnected: (newRoom, handle) => {
-          setRoom(newRoom);
-          setUsername((prev) => prev || handle);
-          setConnectText("Connected");
-          setConnectDisabled(true);
-          setIsMuted(false);
+async function handleJoin() {
+  try {
+    await joinRoom({
+      roomName,
+      username,
+      onConnected: (newRoom, handle) => {
+        setRoom(newRoom);
 
-          console.log("✅ Connected as", handle);
+        // preserve chosen username, else fallback to LiveKit handle
+        setUsername((prev) => prev || handle);
 
-          setupParticipantHandlers(newRoom);
-          scheduleReshuffle();
-          playAudio("/RoameoRoam.mp3");
-        },
-        onDisconnected: () => {
-		  console.log("❌ Disconnected");
-		  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
-		  if (warningTimer.current) clearTimeout(warningTimer.current);
-		  setRoom(null);
-		  setParticipants([]);
-		  setConnectText("Connect");
-		  setConnectDisabled(false);
-		  setIsMuted(false);
-		  // ⚠️ do NOT clear username here — preserve across reshuffles
-		},
+        // save LiveKit local participant
+        setLocalParticipant(newRoom.localParticipant);
 
-      });
-    } catch (err) {
-      console.error("Voice connection failed:", err);
-      setStatus("Voice connection failed");
-      setConnectDisabled(false);
-      setConnectText("Connect");
-    }
+        setConnectText("Connected");
+        setConnectDisabled(true);
+        setIsMuted(false);
+
+        console.log("✅ Connected as", handle);
+
+        setupParticipantHandlers(newRoom);
+        scheduleReshuffle();
+        playAudio("/RoameoRoam.mp3");
+      },
+      onDisconnected: () => {
+        console.log("❌ Disconnected");
+        clearTimeouts();
+        setRoom(null);
+        setLocalParticipant(null);
+        setParticipants([]);
+        setConnectText("Connect");
+        setConnectDisabled(false);
+        setIsMuted(false);
+        // ⚠️ do NOT clear username — sticky
+      },
+    });
+  } catch (err) {
+    console.error("Voice connection failed:", err);
+    setStatus("Voice connection failed");
+    setConnectDisabled(false);
+    setConnectText("Connect");
   }
+}
 
   // --- Disconnect Room
   function handleDisconnect() {
@@ -226,7 +232,11 @@ function setupParticipantHandlers(newRoom) {
       {room && (
         <div className="absolute top-5 left-5 z-50 space-y-2">
           <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
-            You are <strong>{username}</strong>
+            {localParticipant && (
+				<div className="bg-black/70 text-white px-4 py-2 rounded-lg">
+				  You are <strong>{username || localParticipant.identity}</strong>
+				</div>
+)}
           </div>
           {participants.map((p) => (
             <div
