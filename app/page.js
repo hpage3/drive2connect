@@ -74,33 +74,40 @@ function setupParticipantHandlers(newRoom) {
   console.log("👥 Participant list cleared at join/reshuffle");
 
   const updateParticipantList = () => {
-	  if (!newRoom.participants || typeof newRoom.participants.values !== "function") {
-		console.warn("⚠️ Cannot update participant list — participants not ready yet:", newRoom.participants);
-	  }
+    const participantMap = newRoom.participants;
 
-    const remotePeers = newRoom.participants && typeof newRoom.participants.values === "function"
-		? Array.from(newRoom.participants.values())
-		: [];
+    if (!participantMap || typeof participantMap.values !== "function") {
+      console.warn("⚠️ Cannot update participant list — participants not ready yet:", participantMap);
+      return;
+    }
+
+    const remotePeers = Array.from(participantMap.values());
     const fullList = [newRoom.localParticipant, ...remotePeers];
     setParticipants(fullList);
-    console.log("👥 Synced list:", fullList.map(p => p.identity));
+    console.log("👥 Synced list:", fullList.map((p) => p.identity));
   };
 
-  // Live sync on peer events
+  // 🔁 Retry until participants is available
+  const retryInterval = setInterval(() => {
+    const p = newRoom.participants;
+    if (p && typeof p.values === "function") {
+      updateParticipantList();
+      clearInterval(retryInterval);
+    }
+  }, 500);
+
+  // Live updates
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
     console.log("👥 Participant joined:", p.identity);
-    updateParticipantList(); // 🔄 force refresh
+    updateParticipantList();
   });
 
   newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
     console.log("👥 Participant left:", p.identity);
-    updateParticipantList(); // 🔄 force refresh
+    updateParticipantList();
   });
 
-  // Also refresh after a short delay to catch stale state
-  setTimeout(updateParticipantList, 1500);
-
-  // Optional: refresh every 10s for safety
+  // 🔄 Safety fallback
   const interval = setInterval(updateParticipantList, 10000);
   newRoom.once(RoomEvent.Disconnected, () => clearInterval(interval));
 }
