@@ -74,7 +74,13 @@ function setupParticipantHandlers(newRoom) {
   console.log("👥 Participant list cleared at join/reshuffle");
 
   const updateParticipantList = () => {
-    const remotePeers = Array.from(newRoom.participants.values());
+	  if (!newRoom.participants || typeof newRoom.participants.values !== "function") {
+		console.warn("⚠️ Cannot update participant list — participants not ready yet:", newRoom.participants);
+	  }
+
+    const remotePeers = newRoom.participants && typeof newRoom.participants.values === "function"
+		? Array.from(newRoom.participants.values())
+		: [];
     const fullList = [newRoom.localParticipant, ...remotePeers];
     setParticipants(fullList);
     console.log("👥 Synced list:", fullList.map(p => p.identity));
