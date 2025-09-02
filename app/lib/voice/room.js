@@ -54,44 +54,50 @@ export function disconnectRoom(room) {
 	}
 }
 
-// ✅ Fixed: toggleMute now truly mutes/unmutes mic
 export async function toggleMute(room, isMuted) {
-	try {
-		const lp = room?.localParticipant;
-		if (!lp) {
-			console.warn("⚠️ No local participant for mute toggle");
-			return;
-		}
+  try {
+    const lp = room?.localParticipant;
+    if (!lp) {
+      console.warn("⚠️ No local participant for mute toggle");
+      return;
+    }
 
-		if (isMuted) {
-			// 🔊 Unmuting → create and publish a new mic track
-			currentMicTrack = await createLocalAudioTrack();
-			await lp.publishTrack(currentMicTrack);
-			console.log("🎤 Mic re-published (unmuted)");
-		} else {
-			// 🔇 Muting → unpublish and stop current mic track
-			const pubs = [...lp.audioTracks.values()];
-			for (const pub of pubs) {
-				const track = pub.track;
-				if (track && track.kind === "audio") {
-					try {
-						lp.unpublishTrack(track);
-					} catch (e) {
-						console.warn("⚠️ Could not unpublish track", e);
-					}
-					if (track.mediaStreamTrack) {
-						track.mediaStreamTrack.stop();
-						console.log("🎤 Mic track stopped");
-					}
-				}
-			}
-			currentMicTrack = null;
-			console.log("🎤 Mic muted");
-		}
-	} catch (err) {
-		console.warn("⚠️ toggleMute failed:", err);
-	}
+    if (isMuted) {
+      // 🔊 Unmuting → create and publish new mic track
+      currentMicTrack = await createLocalAudioTrack();
+      await lp.publishTrack(currentMicTrack);
+      console.log("🎤 Mic re-published (unmuted)");
+    } else {
+      // 🔇 Muting → unpublish and stop mic track
+      const pubs = [];
+
+      if (lp.audioTracks && typeof lp.audioTracks.values === "function") {
+        pubs.push(...lp.audioTracks.values());
+      }
+
+      for (const pub of pubs) {
+        const track = pub.track;
+        if (track?.kind === "audio") {
+          try {
+            lp.unpublishTrack(track);
+          } catch (e) {
+            console.warn("⚠️ Could not unpublish track", e);
+          }
+          if (track.mediaStreamTrack) {
+            track.mediaStreamTrack.stop();
+            console.log("🎤 Mic track stopped");
+          }
+        }
+      }
+
+      currentMicTrack = null;
+      console.log("🎤 Mic muted");
+    }
+  } catch (err) {
+    console.warn("⚠️ toggleMute failed:", err);
+  }
 }
+
 
 // ✅ Stop and release microphone tracks
 export function stopMicTracks(room) {
