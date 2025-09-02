@@ -230,14 +230,13 @@ async function handleJoin() {
       <div id="map" className="absolute top-0 left-0 w-full h-full" />
 
       {/* User + Participants */}
-      {room && (
-        <div className="absolute top-5 left-5 z-50 space-y-2">
-          <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
-            {localParticipant && (
-		  <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
-			You are <strong>{username || localParticipant.identity}</strong>
-		  </div>
-		)}
+	  {room && (
+	    <div className="absolute top-5 left-5 z-50 space-y-2">
+	  	  {localParticipant && (
+	  	    <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
+		  	You are <strong>{username || localParticipant.identity}</strong>
+		    </div>
+	    )}
 		{participants.map((p) => (
 		  <div
 			key={p.identity}
@@ -246,6 +245,9 @@ async function handleJoin() {
 			{p.identity}
 		  </div>
 		))}
+	  </div>
+	)}
+
 
       {/* Connect / Disconnect */}
       {room && (
