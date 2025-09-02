@@ -56,48 +56,24 @@ export function disconnectRoom(room) {
 
 export async function toggleMute(room, isMuted) {
   try {
-    const lp = room?.localParticipant;
-    if (!lp) {
+    if (!room?.localParticipant) {
       console.warn("⚠️ No local participant for mute toggle");
       return;
     }
 
-    if (isMuted) {
-      // 🔊 UNMUTE — Create and publish new mic track
+    // 🔊 If unmuting and no active mic, create and publish
+    if (isMuted && !currentMicTrack) {
       currentMicTrack = await createLocalAudioTrack();
-      await lp.publishTrack(currentMicTrack);
-      console.log("🎤 Mic re-published (unmuted)");
+      await room.localParticipant.publishTrack(currentMicTrack);
+      console.log("🎤 Mic created and published");
+    }
+
+    // ✅ Use .enabled = false to mute, true to unmute
+    if (currentMicTrack?.mediaStreamTrack) {
+      currentMicTrack.mediaStreamTrack.enabled = isMuted;
+      console.log(`🎤 Mic ${isMuted ? "unmuted" : "muted"}`);
     } else {
-      // 🔇 MUTE — Fully unpublish and stop existing mic tracks
-
-      const pubs = [];
-
-      if (lp.audioTracks && typeof lp.audioTracks.values === "function") {
-        for (const pub of lp.audioTracks.values()) {
-          if (pub?.track?.kind === "audio") {
-            pubs.push(pub);
-          }
-        }
-      }
-
-      if (pubs.length === 0) {
-        console.warn("⚠️ No audio publications to mute");
-      }
-
-      for (const pub of pubs) {
-        const track = pub.track;
-        try {
-          await lp.unpublishTrack(track);
-          track.stop();
-          console.log("🎤 Mic track stopped and unpublished");
-        } catch (e) {
-          console.warn("⚠️ Failed to unpublish/stop track", e);
-        }
-      }
-
-      // 🧹 Clear reference
-      currentMicTrack = null;
-      console.log("🎤 Mic muted");
+      console.warn("⚠️ No mic track available to toggle");
     }
   } catch (err) {
     console.warn("⚠️ toggleMute failed:", err);
