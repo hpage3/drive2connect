@@ -71,17 +71,12 @@ export default function Home() {
   // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
   const syncParticipants = () => {
-    if (!newRoom.localParticipant) return;
-
     const remotePeers = newRoom.participants
       ? Array.from(newRoom.participants.values())
       : [];
 
-    setParticipants([newRoom.localParticipant, ...remotePeers]);
-    console.log(
-      "👥 Synced list:",
-      [newRoom.localParticipant, ...remotePeers].map((p) => p.identity)
-    );
+    setParticipants(remotePeers);
+    console.log("👥 Synced list (remotes only):", remotePeers.map((p) => p.identity));
   };
 
   // Initial sync (safe-guarded)
@@ -96,7 +91,6 @@ function setupParticipantHandlers(newRoom) {
   // Clean up
   newRoom.once(RoomEvent.Disconnected, () => setParticipants([]));
 }
-
 
   // --- Join Room
   async function handleJoin() {
