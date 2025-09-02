@@ -14,9 +14,8 @@ import { RoomEvent } from "livekit-client";
 export default function Home() {
   const [roomName] = useState("lobby");
   const [room, setRoom] = useState(null);
-  const [username, setUsername] = useState("");           // preferred/sticky nameconst [localParticipant, setLocalParticipant] = useState(null); // actual LiveKit object
-  const [participants, setParticipants] = useState([]);   // remotes only
-
+  const [username, setUsername] = useState("");
+  const [participants, setParticipants] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
   const [connectDisabled, setConnectDisabled] = useState(true);
   const [connectText, setConnectText] = useState("Getting Location…");
@@ -71,81 +70,75 @@ export default function Home() {
 
   // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
-  // Start fresh
+  // Clear on join/reshuffle
   setParticipants([]);
+  console.log("👥 Participant list cleared at join/reshuffle");
 
-  // Initialize from current remote participants
-  if (newRoom.participants) {
-    setParticipants(Array.from(newRoom.participants.values()));
-  }
+  // Initial snapshot (include self + remote peers)
+  setTimeout(() => {
+    if (newRoom.localParticipant && newRoom.participants) {
+      const list = [
+        newRoom.localParticipant,
+        ...Array.from(newRoom.participants.values())
+      ];
+      setParticipants(list);
+      console.log("👥 Initial snapshot:", list.map(p => p.identity));
+    }
+  }, 2500); // wait a bit so remote peers are available
 
-  // Add when someone joins
+  // Event-driven updates
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
     console.log("👥 Participant joined:", p.identity);
     setParticipants((prev) => [...prev, p]);
   });
 
-  // Remove when someone leaves
   newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
     console.log("👥 Participant left:", p.identity);
     setParticipants((prev) =>
       prev.filter((x) => x.identity !== p.identity)
     );
   });
-
-  // Cleanup on disconnect
-  newRoom.once(RoomEvent.Disconnected, () => {
-    console.log("👥 Room disconnected, clearing participants");
-    setParticipants([]);
-  });
 }
 
-
   // --- Join Room
-async function handleJoin() {
-  try {
-    await joinRoom({
-      roomName,
-      username,
-      onConnected: (newRoom, handle) => {
-        setRoom(newRoom);
+  async function handleJoin() {
+    try {
+      await joinRoom({
+        roomName,
+        username,
+        onConnected: (newRoom, handle) => {
+          setRoom(newRoom);
+          setUsername((prev) => prev || handle);
+          setConnectText("Connected");
+          setConnectDisabled(true);
+          setIsMuted(false);
 
-        // preserve chosen username, else fallback to LiveKit handle
-        setUsername((prev) => prev || handle);
+          console.log("✅ Connected as", handle);
 
-        // save LiveKit local participant
-        setLocalParticipant(newRoom.localParticipant);
-
-        setConnectText("Connected");
-        setConnectDisabled(true);
-        setIsMuted(false);
-
-        console.log("✅ Connected as", handle);
-
-        setupParticipantHandlers(newRoom);
-        scheduleReshuffle();
-        playAudio("/RoameoRoam.mp3");
-      },
-      onDisconnected: () => {
+          setupParticipantHandlers(newRoom);
+          scheduleReshuffle();
+          playAudio("/RoameoRoam.mp3");
+        },
+        onDisconnected: () => {
 		  console.log("❌ Disconnected");
 		  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
 		  if (warningTimer.current) clearTimeout(warningTimer.current);
 		  setRoom(null);
-		  setLocalParticipant(null);
 		  setParticipants([]);
 		  setConnectText("Connect");
 		  setConnectDisabled(false);
 		  setIsMuted(false);
-		}
+		  // ⚠️ do NOT clear username here — preserve across reshuffles
+		},
 
-    });
-  } catch (err) {
-    console.error("Voice connection failed:", err);
-    setStatus("Voice connection failed");
-    setConnectDisabled(false);
-    setConnectText("Connect");
+      });
+    } catch (err) {
+      console.error("Voice connection failed:", err);
+      setStatus("Voice connection failed");
+      setConnectDisabled(false);
+      setConnectText("Connect");
+    }
   }
-}
 
   // --- Disconnect Room
   function handleDisconnect() {
@@ -162,47 +155,43 @@ async function handleJoin() {
 
   // --- Reshuffle
   async function handleReshuffle() {
-  console.log("🔄 Performing reshuffle…");
-  try {
-    // Disconnect old room (don’t clear participants here)
-    disconnectRoom(room);
+    console.log("🔄 Performing reshuffle…");
+    try {
+      disconnectRoom(room);
+      await new Promise((r) => setTimeout(r, 500));
 
-    await new Promise((r) => setTimeout(r, 500));
+      playAudio("/RoameoRoam.mp3");
 
-    await joinRoom({
-      roomName,
-      username,
-      onConnected: (newRoom, handle) => {
-        console.log("✅ Reconnected after reshuffle as", handle);
-        setRoom(newRoom);
-        setUsername((prev) => prev || handle);
-        setConnectText("Connected");
-        setConnectDisabled(true);
-        setIsMuted(false);
-        setStatus("");
+      await joinRoom({
+        roomName,
+        username,
+        onConnected: (newRoom, handle) => {
+          console.log("✅ Reconnected after reshuffle as", handle);
+          setRoom(newRoom);
+          setUsername((prev) => prev || handle);
+          setConnectText("Connected");
+          setConnectDisabled(true);
+          setIsMuted(false);
+          setStatus("");
 
-        // ✅ Fresh snapshot of current participants
-        setParticipants(Array.from(newRoom.participants.values()));
-
-        // ✅ Then wire up event-based updates
-        setupParticipantHandlers(newRoom);
-
-        scheduleReshuffle();
-      },
-      onDisconnected: () => {
-        console.log("❌ Disconnected after reshuffle");
-        setRoom(null);
-        setParticipants([]); // only clear if really gone
-        setConnectText("Connect");
-        setConnectDisabled(false);
-        setIsMuted(false);
-      },
-    });
-  } catch (err) {
-    console.error("❌ Reshuffle failed:", err);
-    setStatus("Reshuffle failed");
+          setupParticipantHandlers(newRoom);
+          scheduleReshuffle();
+        },
+        onDisconnected: () => {
+		  console.log("❌ Disconnected after reshuffle");
+		  setRoom(null);
+		  setParticipants([]);
+		  setConnectText("Connect");
+		  setConnectDisabled(false);
+		  setIsMuted(false);
+		  // ⚠️ do NOT clear username here either
+		},
+      });
+    } catch (err) {
+      console.error("❌ Reshuffle failed:", err);
+      setStatus("Reshuffle failed");
+    }
   }
-}
 
   // --- Toggle Mute
   async function handleMuteToggle() {
@@ -230,23 +219,45 @@ async function handleJoin() {
       <div id="map" className="absolute top-0 left-0 w-full h-full" />
 
       {/* User + Participants */}
-	  {room && (
-	    <div className="absolute top-5 left-5 z-50 space-y-2">
-		  {localParticipant && (
-		    <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
-		  	You are <strong>{username || localParticipant.identity}</strong>
-		    </div>
-		  )}
-		  {participants.map((p) => (
-		    <div
-			  key={p.identity}
-			  className="bg-black/50 text-white px-3 py-1 rounded"
-		    >
-		  	{p.identity}
-		    </div>
-		  ))}
-	    </div>
-	  )}
+      {room && (
+        <div className="absolute top-5 left-5 z-50 space-y-2">
+          <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
+            You are <strong>{username}</strong>
+          </div>
+          {participants.map((p) => (
+            <div
+              key={p.identity}
+              className="bg-black/50 text-white px-3 py-1 rounded"
+            >
+              {p.identity}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Connect / Disconnect */}
+      {!room && (
+        <button
+          onClick={handleJoin}
+          disabled={connectDisabled}
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 
+                     px-6 py-3 rounded-xl font-bold z-50 
+                     bg-green-600 text-white hover:bg-green-700"
+        >
+          {connectText}
+        </button>
+      )}
+
+      {room && (
+        <button
+          onClick={handleDisconnect}
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 
+                     px-6 py-3 rounded-xl font-bold z-50 
+                     bg-red-600 text-white hover:bg-red-700"
+        >
+          Disconnect
+        </button>
+      )}
 
       {/* Controls */}
       {room && (
