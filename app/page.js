@@ -74,26 +74,27 @@ function setupParticipantHandlers(newRoom) {
   console.log("👥 Participant list cleared at join/reshuffle");
 
   const updateParticipantList = () => {
-    const remotePeers = newRoom.participants
-      ? Array.from(newRoom.participants.values())
-      : [];
+    const remotePeers = Array.from(newRoom.participants.values());
     const fullList = [newRoom.localParticipant, ...remotePeers];
     setParticipants(fullList);
     console.log("👥 Synced list:", fullList.map(p => p.identity));
   };
 
+  // Live sync on peer events
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
     console.log("👥 Participant joined:", p.identity);
-    updateParticipantList();
+    updateParticipantList(); // 🔄 force refresh
   });
 
   newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
     console.log("👥 Participant left:", p.identity);
-    updateParticipantList();
+    updateParticipantList(); // 🔄 force refresh
   });
 
+  // Also refresh after a short delay to catch stale state
   setTimeout(updateParticipantList, 1500);
 
+  // Optional: refresh every 10s for safety
   const interval = setInterval(updateParticipantList, 10000);
   newRoom.once(RoomEvent.Disconnected, () => clearInterval(interval));
 }
