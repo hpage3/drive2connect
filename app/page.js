@@ -127,26 +127,26 @@ r
 		    const hasBot = participants.some((p) => p.identity === "RoameoBot");
 
 		    if (!hasBot) {
-		  	  fetch("/api/add-agent?room=" + roomName)
-			    .then(async (res) => {
-				  if (!res.ok) {
-				    throw new Error("Failed to fetch RoameoBot token");
-				  }
+			fetch("/api/add-agent?room=" + roomName)
+			  .then(async (res) => {
+				if (!res.ok) {
+				  throw new Error("Failed to fetch RoameoBot token");
+				}
 
-				  const { token, url, identity } = await res.json();
+				const { token, url, identity } = await res.json();
 
-				  console.log("🤖 Spawning RoameoBot as", identity);
+				console.log("🤖 Spawning RoameoBot as", identity);
 
-				  const botFrame = document.createElement("iframe");
-				  botFrame.style.display = "none";
-				  botFrame.src = `/bot.html?token=${encodeURIComponent(
-				    token
-				  )}&url=${encodeURIComponent(url)}`;
-				  document.body.appendChild(botFrame);
-			    })
-			    .catch((err) => {
-				  console.error("🚨 RoameoBot error:", err);
-			    });
+				const botFrame = document.createElement("iframe");
+				botFrame.style.display = "none";
+				botFrame.src = `/bot.html?token=${encodeURIComponent(
+				  token
+				)}&url=${encodeURIComponent(url)}`;
+				document.body.appendChild(botFrame);
+			  })
+			  .catch((err) => {
+				console.error("🚨 RoameoBot error:", err);
+			  });
 		    } else {
 			  console.log("👥 Skipping RoameoBot — already present in the room");
 		    }
