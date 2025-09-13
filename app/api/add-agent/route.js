@@ -1,6 +1,7 @@
 // app/api/add-agent/route.js
 import { NextResponse } from 'next/server';
 import pkg from 'livekit-server-sdk';
+
 const { AccessToken } = pkg;
 
 export async function GET(request) {
@@ -10,7 +11,7 @@ export async function GET(request) {
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
-  const livekitHost = process.env.LIVEKIT_HOST; // 👈 make sure .env uses LIVEKIT_HOST
+  const livekitHost = process.env.LIVEKIT_HOST;
 
   const at = new AccessToken(apiKey, apiSecret, {
     identity,
@@ -20,7 +21,7 @@ export async function GET(request) {
   at.addGrant({ roomJoin: true, room });
 
   return NextResponse.json({
-    token: at.toJwt(), // ✅ always a string
+    token: at.toJwt(), // 🔥 this will now be a string
     url: livekitHost,
     identity,
   });
