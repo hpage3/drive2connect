@@ -112,41 +112,46 @@ async function handleJoin() {
 		  setConnectText("Connected");
 		  setConnectDisabled(true);
 		  setIsMuted(false);
-
+r
 		  console.log("✅ Connected as", handle);
 
 		  setupParticipantHandlers(newRoom);
+		  resyncParticipants(newRoom); // 👈 make sure we have all participants
 		  scheduleReshuffle();
 		  playAudio("/RoameoRoam.mp3");
 
-		  // Safe RoameoBot spawn check
+		// Safe RoameoBot spawn check
 		  setTimeout(() => {
-			const participantCount = newRoom?.participants?.size || 0;
+		  // Pull the list of participants we actually know about
+		    const participants = Array.from(newRoom?.participants?.values() || []);
+		    const hasBot = participants.some((p) => p.identity === "RoameoBot");
 
-			if (participantCount === 0) {
-				fetch("/api/add-agent?room=" + roomName)
-				  .then(async (res) => {
-					if (!res.ok) {
-					  throw new Error("Failed to fetch RoameoBot token");
-					}
+		    if (!hasBot) {
+		  	  fetch("/api/add-agent?room=" + roomName)
+			    .then(async (res) => {
+				  if (!res.ok) {
+				    throw new Error("Failed to fetch RoameoBot token");
+				  }
 
-					const { token, url, identity } = await res.json();
+				  const { token, url, identity } = await res.json();
 
-					console.log("🤖 Spawning RoameoBot as", identity);
+				  console.log("🤖 Spawning RoameoBot as", identity);
 
-					const botFrame = document.createElement("iframe");
-					botFrame.style.display = "none";
-					botFrame.src = `/bot.html?token=${encodeURIComponent(token)}&url=${encodeURIComponent(url)}`;
-					document.body.appendChild(botFrame);
-				  })
-				  .catch((err) => {
-					console.error("🚨 RoameoBot error:", err);
-				  });
-
-			} else {
-			  console.log(`👥 Skipping RoameoBot — already ${participantCount} participants`);
-			}
+				  const botFrame = document.createElement("iframe");
+				  botFrame.style.display = "none";
+				  botFrame.src = `/bot.html?token=${encodeURIComponent(
+				    token
+				  )}&url=${encodeURIComponent(url)}`;
+				  document.body.appendChild(botFrame);
+			    })
+			    .catch((err) => {
+				  console.error("🚨 RoameoBot error:", err);
+			    });
+		    } else {
+			  console.log("👥 Skipping RoameoBot — already present in the room");
+		    }
 		  }, 2500); // ⏳ wait 2.5s
+
 		},
       onDisconnected: () => {
         console.log("❌ Disconnected");
