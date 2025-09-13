@@ -1,6 +1,7 @@
 // app/api/add-agent/route.js
 import { NextResponse } from 'next/server';
-import { AccessToken } from 'livekit-server-sdk';
+import pkg from 'livekit-server-sdk';
+const { AccessToken } = pkg;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -9,19 +10,17 @@ export async function GET(request) {
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
-  const livekitHost = process.env.LIVEKIT_HOST;
+  const livekitHost = process.env.LIVEKIT_HOST; // 👈 make sure .env uses LIVEKIT_HOST
 
-  const token = new AccessToken(apiKey, apiSecret, {
+  const at = new AccessToken(apiKey, apiSecret, {
     identity,
     name: 'Roameo',
   });
 
-  token.addGrant({ roomJoin: true, room });
-
-  const jwt = token.toJwt();
+  at.addGrant({ roomJoin: true, room });
 
   return NextResponse.json({
-    token: jwt,
+    token: at.toJwt(), // ✅ always a string
     url: livekitHost,
     identity,
   });
