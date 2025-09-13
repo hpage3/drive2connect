@@ -138,7 +138,7 @@ async function handleJoin() {
 			  console.log(`👥 Skipping RoameoBot — already ${participantCount} participants`);
 			}
 		  }, 2500); // ⏳ wait 2.5s
-		}
+		},
       onDisconnected: () => {
         console.log("❌ Disconnected");
         if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
