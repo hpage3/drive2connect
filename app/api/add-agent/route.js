@@ -18,7 +18,7 @@ export async function GET(request) {
 
   token.addGrant({ roomJoin: true, room });
 
-  const jwt = token.toJwt();
+  const jwt = await token.toJwt();
 
   return NextResponse.json({
     token: jwt,
