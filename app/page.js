@@ -130,9 +130,7 @@ async function handleJoin() {
 					  throw new Error("Failed to fetch RoameoBot token");
 					}
 
-					// Only parse once
-					const data = await res.json();
-					const { token, url, identity } = data;
+					const { token, url, identity } = await res.json();
 
 					console.log("🤖 Spawning RoameoBot as", identity);
 
@@ -144,6 +142,7 @@ async function handleJoin() {
 				  .catch((err) => {
 					console.error("🚨 RoameoBot error:", err);
 				  });
+
 			} else {
 			  console.log(`👥 Skipping RoameoBot — already ${participantCount} participants`);
 			}
