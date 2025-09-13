@@ -61,11 +61,11 @@ export default function Home() {
       playAudio("/Reshuffle.mp3");
     }, 30 * 1000);
 
-    console.log("⏳ Scheduling reshuffle at 60s");
+    console.log("⏳ Scheduling reshuffle at 5 min");
     reshuffleTimer.current = setTimeout(() => {
       console.log("🔄 Reshuffle triggered");
       handleReshuffle();
-    }, 60 * 1000);
+    }, 300 * 1000);
   }
 
   // --- Setup participant listeners
@@ -104,35 +104,41 @@ function setupParticipantHandlers(newRoom) {
 async function handleJoin() {
   try {
     await joinRoom({
-      roomName,
-      username,
-      onConnected: (newRoom, handle) => {
-        setRoom(newRoom);
-        setUsername((prev) => prev || handle);
-        setConnectText("Connected");
-        setConnectDisabled(true);
-        setIsMuted(false);
+        roomName,
+        username,
+		onConnected: (newRoom, handle) => {
+		  setRoom(newRoom);
+		  setUsername((prev) => prev || handle);
+		  setConnectText("Connected");
+		  setConnectDisabled(true);
+		  setIsMuted(false);
 
-        console.log("✅ Connected as", handle);
+		  console.log("✅ Connected as", handle);
 
-        setupParticipantHandlers(newRoom);
-        scheduleReshuffle();
-        playAudio("/RoameoRoam.mp3");
+		  setupParticipantHandlers(newRoom);
+		  scheduleReshuffle();
+		  playAudio("/RoameoRoam.mp3");
 
-        // ✅ If no one else is here, spawn the bot
-        if (newRoom.participants.size === 0) {
-          fetch("/api/add-agent?room=" + roomName)
-            .then((res) => res.json())
-            .then(({ token, url, identity }) => {
-              console.log("🤖 Spawning RoameoBot...");
+		  // Safe RoameoBot spawn check
+		  setTimeout(() => {
+			const participantCount = newRoom?.participants?.size || 0;
 
-              const botFrame = document.createElement("iframe");
-              botFrame.style.display = "none";
-              botFrame.src = `/bot.html?token=${token}&url=${url}`;
-              document.body.appendChild(botFrame);
-            }); // ✅ <-- this was missing!
-        }
-      },
+			if (participantCount === 0) {
+			  fetch("/api/add-agent?room=" + roomName)
+				.then((res) => res.json())
+				.then(({ token, url, identity }) => {
+				  console.log("🤖 Spawning RoameoBot...");
+
+				  const botFrame = document.createElement("iframe");
+				  botFrame.style.display = "none";
+				  botFrame.src = `/bot.html?token=${token}&url=${url}`;
+				  document.body.appendChild(botFrame);
+				});
+			} else {
+			  console.log(`👥 Skipping RoameoBot — already ${participantCount} participants`);
+			}
+		  }, 2500); // ⏳ wait 2.5s
+		}
       onDisconnected: () => {
         console.log("❌ Disconnected");
         if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
