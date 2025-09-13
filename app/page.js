@@ -124,20 +124,26 @@ async function handleJoin() {
 			const participantCount = newRoom?.participants?.size || 0;
 
 			if (participantCount === 0) {
-			  fetch("/api/add-agent?room=" + roomName)
-				.then((res) => res.json())
-				.then(async (res) => {
-				  const data = await res.json();
-				  const { token, url, identity } = data;
+				fetch("/api/add-agent?room=" + roomName)
+				  .then(async (res) => {
+					if (!res.ok) {
+					  throw new Error("Failed to fetch RoameoBot token");
+					}
 
-				  console.log("🤖 Spawning RoameoBot...", identity);
+					// Only parse once
+					const data = await res.json();
+					const { token, url, identity } = data;
 
-				  const botFrame = document.createElement("iframe");
-				  botFrame.style.display = "none";
-				  botFrame.src = `/bot.html?token=${encodeURIComponent(token)}&url=${encodeURIComponent(url)}`;
-				  document.body.appendChild(botFrame);
-				});
+					console.log("🤖 Spawning RoameoBot as", identity);
 
+					const botFrame = document.createElement("iframe");
+					botFrame.style.display = "none";
+					botFrame.src = `/bot.html?token=${encodeURIComponent(token)}&url=${encodeURIComponent(url)}`;
+					document.body.appendChild(botFrame);
+				  })
+				  .catch((err) => {
+					console.error("🚨 RoameoBot error:", err);
+				  });
 			} else {
 			  console.log(`👥 Skipping RoameoBot — already ${participantCount} participants`);
 			}
