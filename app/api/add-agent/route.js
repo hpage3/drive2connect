@@ -9,17 +9,19 @@ export async function GET(request) {
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
-  const livekitHost = process.env.LIVEKIT_HOST; // 👈 must match .env.local
+  const livekitHost = process.env.LIVEKIT_URL; // use LIVEKIT_URL (matches your env file)
 
-  const at = new AccessToken(apiKey, apiSecret, {
+  const token = new AccessToken(apiKey, apiSecret, {
     identity,
     name: "Roameo",
   });
 
-  at.addGrant({ roomJoin: true, room });
+  token.addGrant({ roomJoin: true, room });
+
+  const jwt = token.toJwt();
 
   return NextResponse.json({
-    token: at.toJwt(), // ✅ JWT string
+    token: jwt,
     url: livekitHost,
     identity,
   });
