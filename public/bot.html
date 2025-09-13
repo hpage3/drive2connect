@@ -7,10 +7,16 @@
 
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
-  const url = urlParams.get("url");
+  const livekitUrl = decodeURIComponent(urlParams.get("url") || "");
+
+  console.log("🔗 Connecting RoameoBot to:", livekitUrl);
+
+  if (!livekitUrl || !token) {
+    throw new Error("Missing LiveKit URL or token");
+  }
 
   const room = new Room();
-  await room.connect(url, token);
+  await room.connect(livekitUrl, token);
   console.log("🤖 RoameoBot joined the room!");
 
   // Optional: play welcome audio
