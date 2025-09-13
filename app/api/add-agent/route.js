@@ -9,7 +9,7 @@ export async function GET(request) {
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
-  const livekitHost = process.env.LIVEKIT_URL; // use LIVEKIT_URL (matches your env file)
+  const livekitHost = process.env.LIVEKIT_HOST; // use LIVEKIT_HOST (matches your env file)
 
   const token = new AccessToken(apiKey, apiSecret, {
     identity,
