@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head><title>RoameoBot</title></head>
+<body>
+<script type="module">
+  import { Room } from 'https://cdn.skypack.dev/livekit-client';
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get("token");
+  const url = urlParams.get("url");
+
+  const room = new Room();
+  await room.connect(url, token);
+  console.log("🤖 RoameoBot joined the room!");
+
+  // Optional: play welcome audio
+  const audio = new Audio("/RoameoRoam.mp3");
+  audio.play();
+</script>
+</body>
+</html>

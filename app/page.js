@@ -101,44 +101,57 @@ function setupParticipantHandlers(newRoom) {
 }
 
   // --- Join Room
-  async function handleJoin() {
-    try {
-      await joinRoom({
-        roomName,
-        username,
-        onConnected: (newRoom, handle) => {
-          setRoom(newRoom);
-          setUsername((prev) => prev || handle);
-          setConnectText("Connected");
-          setConnectDisabled(true);
-          setIsMuted(false);
+async function handleJoin() {
+  try {
+    await joinRoom({
+      roomName,
+      username,
+      onConnected: (newRoom, handle) => {
+        setRoom(newRoom);
+        setUsername((prev) => prev || handle);
+        setConnectText("Connected");
+        setConnectDisabled(true);
+        setIsMuted(false);
 
-          console.log("✅ Connected as", handle);
+        console.log("✅ Connected as", handle);
 
-          setupParticipantHandlers(newRoom);
-          scheduleReshuffle();
-          playAudio("/RoameoRoam.mp3");
-        },
-        onDisconnected: () => {
-		  console.log("❌ Disconnected");
-		  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
-		  if (warningTimer.current) clearTimeout(warningTimer.current);
-		  setRoom(null);
-		  setParticipants([]);
-		  setConnectText("Connect");
-		  setConnectDisabled(false);
-		  setIsMuted(false);
-		  // ⚠️ do NOT clear username here — preserve across reshuffles
-		},
+        setupParticipantHandlers(newRoom);
+        scheduleReshuffle();
+        playAudio("/RoameoRoam.mp3");
 
-      });
-    } catch (err) {
-      console.error("Voice connection failed:", err);
-      setStatus("Voice connection failed");
-      setConnectDisabled(false);
-      setConnectText("Connect");
-    }
+        // ✅ If no one else is here, spawn the bot
+        if (newRoom.participants.size === 0) {
+          fetch("/api/add-agent?room=" + roomName)
+            .then((res) => res.json())
+            .then(({ token, url, identity }) => {
+              console.log("🤖 Spawning RoameoBot...");
+
+              const botFrame = document.createElement("iframe");
+              botFrame.style.display = "none";
+              botFrame.src = `/bot.html?token=${token}&url=${url}`;
+              document.body.appendChild(botFrame);
+            }); // ✅ <-- this was missing!
+        }
+      },
+      onDisconnected: () => {
+        console.log("❌ Disconnected");
+        if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+        if (warningTimer.current) clearTimeout(warningTimer.current);
+        setRoom(null);
+        setParticipants([]);
+        setConnectText("Connect");
+        setConnectDisabled(false);
+        setIsMuted(false);
+        // ⚠️ do NOT clear username here — preserve across reshuffles
+      },
+    });
+  } catch (err) {
+    console.error("Voice connection failed:", err);
+    setStatus("Voice connection failed");
+    setConnectDisabled(false);
+    setConnectText("Connect");
   }
+}
 
   // --- Disconnect Room
   function handleDisconnect() {
