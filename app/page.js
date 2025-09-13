@@ -126,14 +126,18 @@ async function handleJoin() {
 			if (participantCount === 0) {
 			  fetch("/api/add-agent?room=" + roomName)
 				.then((res) => res.json())
-				.then(({ token, url, identity }) => {
-				  console.log("🤖 Spawning RoameoBot...");
+				.then(async (res) => {
+				  const data = await res.json();
+				  const { token, url, identity } = data;
+
+				  console.log("🤖 Spawning RoameoBot...", identity);
 
 				  const botFrame = document.createElement("iframe");
 				  botFrame.style.display = "none";
-				  botFrame.src = `/bot.html?token=${token}&url=${url}`;
+				  botFrame.src = `/bot.html?token=${encodeURIComponent(token)}&url=${encodeURIComponent(url)}`;
 				  document.body.appendChild(botFrame);
 				});
+
 			} else {
 			  console.log(`👥 Skipping RoameoBot — already ${participantCount} participants`);
 			}
