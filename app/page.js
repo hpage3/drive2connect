@@ -112,7 +112,7 @@ async function handleJoin() {
 		  setConnectText("Connected");
 		  setConnectDisabled(true);
 		  setIsMuted(false);
-r
+		  
 		  console.log("✅ Connected as", handle);
 
 		  setupParticipantHandlers(newRoom);
@@ -191,7 +191,7 @@ r
     console.log("🔄 Performing reshuffle…");
     try {
       disconnectRoom(room);
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((res) => setTimeout(res, 500));
 
       playAudio("/RoameoRoam.mp3");
 
