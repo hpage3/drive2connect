@@ -106,10 +106,6 @@ export default function Home() {
       console.log("👥 Participant left:", p.identity);
       resync();
     });
-	newRoom.once(RoomEvent.Connected, () => {
-      console.log("🟢 LiveKit Room Connected — final participant sync");
-      resync();
-	});
   }
 
   // --- Join Room
