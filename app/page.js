@@ -74,39 +74,33 @@ export default function Home() {
   }
 
   // --- Setup participant listeners
-  function setupParticipantHandlers(newRoom) {
-    if (!newRoom) {
-      console.warn("⚠️ setupParticipantHandlers called with no room");
-      return;
-    }
-
-    function resync() {
-      const list = [];
-      if (newRoom.localParticipant) {
-        list.push(newRoom.localParticipant);
-      }
-      if (newRoom.participants && typeof newRoom.participants.values === "function") {
-        list.push(...Array.from(newRoom.participants.values()));
-      }
-      setParticipants(list);
-      console.log("👥 Resynced participants:", list.map((p) => p.identity));
-    }
-
-    setParticipants([]);
-    console.log("👥 Participant list cleared at join/reshuffle");
-
-    setTimeout(() => resync(), 4000);
-
-    newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-      console.log("👥 Participant joined:", p.identity);
-      resync();
-    });
-
-    newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-      console.log("👥 Participant left:", p.identity);
-      resync();
-    });
+function setupParticipantHandlers(newRoom) {
+  if (!newRoom) {
+    console.warn("⚠️ setupParticipantHandlers called with no room");
+    return;
   }
+
+  // Initial sync: build list from current state
+  const initialList = [
+    newRoom.localParticipant,
+    ...Array.from(newRoom.participants.values())
+  ].filter(Boolean);
+  setParticipants(initialList);
+  console.log("👥 Initial sync:", initialList.map((p) => p.identity));
+
+  // Listen for join
+  newRoom.on(RoomEvent.ParticipantConnected, (p) => {
+    console.log("👥 Participant joined:", p.identity);
+    setParticipants((prev) => [...prev, p]);
+  });
+
+  // Listen for leave
+  newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+    console.log("👥 Participant left:", p.identity);
+    setParticipants((prev) => prev.filter((x) => x.sid !== p.sid));
+  });
+}
+
 
   // --- Join Room
   async function handleJoin() {
