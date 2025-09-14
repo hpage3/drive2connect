@@ -41,15 +41,18 @@ export default function Home() {
     setParticipants((prev) => prev.filter((x) => x.identity !== p.identity));
   }
 
-  function resyncParticipants(room) {
-    if (!room || !room.participants) {
-      console.log("⚠️ No participants yet to resync");
-      return;
-    }
-    setParticipants(Array.from(room.participants.values()));
-    console.log("🔄 Participant list resynced");
-  }
+	function resyncParticipants(room) {
+	  // Grab everyone already in the room (bot included, if it connected first)
+	  const existing = Array.from(room.participants.values());
+	  console.log("🔄 Resyncing participants:", existing.map(p => p.identity));
 
+	  setParticipants(existing);
+
+	  // Optionally include yourself
+	  if (room.localParticipant) {
+		setParticipants((prev) => [room.localParticipant, ...prev]);
+	  }
+	}
   // --- Schedule reshuffle timers
 	function scheduleReshuffle() {
 	  // clear any old timers
@@ -120,10 +123,16 @@ async function handleJoin() {
 		  console.log("✅ Connected as", handle);
 
 		  setupParticipantHandlers(newRoom);
-		  resyncParticipants(newRoom); // 👈 make sure we have all participants
+		 // ✅ Ensure we capture participants already in the room
+		  const existing = Array.from(newRoom.participants.values());
+		  if (newRoom.localParticipant) {
+			existing.unshift(newRoom.localParticipant);
+		  }
+		  setParticipants(existing);
+		  console.log("🔄 Initial participant sync:", existing.map(p => p.identity));
+
 		  scheduleReshuffle();
 		  playAudio("/RoameoRoam.mp3");
-
 		// Safe RoameoBot spawn check
 		  setTimeout(() => {
 		  // Pull the list of participants we actually know about
@@ -154,7 +163,7 @@ async function handleJoin() {
 		    } else {
 			  console.log("👥 Skipping RoameoBot — already present in the room");
 		    }
-		  }, 2500); // ⏳ wait 2.5s
+		  }, 5000); // ⏳ wait 5s
 
 		},
       onDisconnected: () => {
