@@ -125,10 +125,13 @@ export default function Home() {
 
           setupParticipantHandlers(newRoom);
 
-          const existing = Array.from(newRoom.participants.values());
-          if (newRoom.localParticipant) {
-            existing.unshift(newRoom.localParticipant);
-          }
+		  const existing = [];
+		  if (newRoom.participants && typeof newRoom.participants.values === "function") {
+			existing.push(...Array.from(newRoom.participants.values()));
+		  }
+		  if (newRoom.localParticipant) {
+		    existing.unshift(newRoom.localParticipant);
+		  }
           setParticipants(existing);
           console.log(
             "🔄 Initial participant sync:",
