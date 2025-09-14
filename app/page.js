@@ -128,13 +128,19 @@ export default function Home() {
 		  console.log("✅ Connected as", handle);
 		  console.log("🌐 Room name:", newRoom.name);
 		  console.log("🌐 Server URL:", newRoom.engine?.url || "(no URL)");
-		 // 🛠️ Wait until the room is *fully* connected
-		  newRoom.once(RoomEvent.Connected, () => {
-		    console.log("🟢 LiveKit Room Connected.");
-		    console.log("Room ID:", newRoom.sid);
-
-            setupParticipantHandlers(newRoom);
-		  })
+		 // Handle already-connected rooms
+		  if (newRoom.state === "connected") {
+			console.log("🟢 LiveKit Room Connected (immediate).");
+			console.log("Room ID:", newRoom.sid);
+			setupParticipantHandlers(newRoom);
+		  } else {
+			// Otherwise wait for the event
+			newRoom.once(RoomEvent.Connected, () => {
+			  console.log("🟢 LiveKit Room Connected.");
+			  console.log("Room ID:", newRoom.sid);
+			  setupParticipantHandlers(newRoom);
+			});
+		  }
 
           const existing = [];
           if (newRoom.participants && typeof newRoom.participants.values === "function") {
