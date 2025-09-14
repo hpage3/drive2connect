@@ -2,8 +2,10 @@ import { AccessToken } from 'livekit-server-sdk';
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const room = searchParams.get('room');
+  const room = searchParams.get('room') || "lobby";
   const user = searchParams.get('user');
+  console.log("🔑 Token request params:", { room, user });
+
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
