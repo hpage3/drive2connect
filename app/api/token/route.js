@@ -40,6 +40,8 @@ export async function GET(req) {
     console.log("✅ Token generated successfully");
     console.log("   Room granted:", room);
     console.log("   Identity granted:", user);
+	console.log("   JWT Preview:", jwt.split(".")[1]); // log just the payload section
+
 
     return new Response(JSON.stringify({ token: jwt, room, user }), {
       status: 200,
