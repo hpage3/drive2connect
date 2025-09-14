@@ -26,196 +26,172 @@ export default function Home() {
 
   // --- Audio helper
   function playAudio(src) {
-    const audio = new Audio(src);
-    audio.play()
-      .then(() => console.log("▶️ Playing:", src))
-      .catch((err) => console.error("❌ Audio play failed:", src, err));
+    return new Promise((resolve, reject) => {
+      const audio = new Audio(src);
+      audio.onended = () => resolve();
+      audio.onerror = (err) => reject(err);
+      audio
+        .play()
+        .then(() => console.log("▶️ Playing:", src))
+        .catch((err) => {
+          console.error("❌ Audio play failed:", src, err);
+          reject(err);
+        });
+    });
   }
-
-  // --- Manage Participants
-  function handleParticipantJoin(p) {
-    setParticipants((prev) => [...prev, p]);
-  }
-
-  function handleParticipantLeave(p) {
-    setParticipants((prev) => prev.filter((x) => x.identity !== p.identity));
-  }
-
-function resyncParticipants(room) {
-  if (!room) {
-    console.warn("⚠️ Tried to resync participants, but room is undefined");
-    return;
-  }
-  const participants = Array.from(room.participants?.values?.() || []);
-  console.log("🔄 Resyncing participants:", participants.map(p => p.identity));
-  setParticipants(participants);
-}
 
   // --- Schedule reshuffle timers
-	function scheduleReshuffle() {
-	  // clear any old timers
-	  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
-	  if (warningTimer.current) clearTimeout(warningTimer.current);
+  function scheduleReshuffle() {
+    if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+    if (warningTimer.current) clearTimeout(warningTimer.current);
 
-	  const reshuffleDelay = 300 * 1000; // 5 minutes
-	  const warningDelay = reshuffleDelay - 30 * 1000; // fire warning at 4m30s
+    const reshuffleDelay = 300 * 1000; // 5 minutes (later configurable)
+    const warningDelay = reshuffleDelay - 30 * 1000;
 
-	  console.log("⏳ Scheduling reshuffle warning at 4m30s (30s before reshuffle)");
-	  warningTimer.current = setTimeout(() => {
-		console.log("⚠️ Reshuffle warning fired");
-		playAudio("/Reshuffle.mp3");
-	  }, warningDelay);
+    // Pretty print helper
+    function formatMs(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      return sec === 0 ? `${min}m` : `${min}m${sec}s`;
+    }
 
-	  // Convert ms to minutes/seconds for nice logs
-	  function formatMs(ms) {
-		  const totalSec = Math.floor(ms / 1000);
-		  const min = Math.floor(totalSec / 60);
-		  const sec = totalSec % 60;
-		  return sec === 0 ? `${min}m` : `${min}m${sec}s`;
-	  }
+    console.log(
+      `⏳ Scheduling reshuffle warning at ${formatMs(
+        warningDelay
+      )} (30s before reshuffle)`
+    );
+    warningTimer.current = setTimeout(() => {
+      console.log("⚠️ Reshuffle warning fired");
+      playAudio("/Reshuffle.mp3");
+    }, warningDelay);
 
-	  console.log(`⏳ Scheduling reshuffle warning at ${formatMs(warningDelay)} (${Math.floor((reshuffleDelay - warningDelay)/1000)}s before reshuffle)`);
-	  reshuffleTimer.current = setTimeout(() => {
-		console.log("🔄 Reshuffle triggered");
-		handleReshuffle();
-	  }, reshuffleDelay);
-	}
+    console.log(`⏳ Scheduling reshuffle at ${formatMs(reshuffleDelay)}`);
+    reshuffleTimer.current = setTimeout(() => {
+      console.log("🔄 Reshuffle triggered");
+      handleReshuffle();
+    }, reshuffleDelay);
+  }
 
   // --- Setup participant listeners
-function setupParticipantHandlers(newRoom) {
-  if (!newRoom) {
-    console.warn("⚠️ setupParticipantHandlers called with no room");
-    return;
-  }
-
-  // Helper: refresh the participants list safely
-  function resync() {
-    const list = [];
-    if (newRoom.localParticipant) {
-      list.push(newRoom.localParticipant);
+  function setupParticipantHandlers(newRoom) {
+    if (!newRoom) {
+      console.warn("⚠️ setupParticipantHandlers called with no room");
+      return;
     }
-    if (newRoom.participants && newRoom.participants.values) {
-      list.push(...Array.from(newRoom.participants.values()));
+
+    function resync() {
+      const list = [];
+      if (newRoom.localParticipant) {
+        list.push(newRoom.localParticipant);
+      }
+      if (newRoom.participants && typeof newRoom.participants.values === "function") {
+        list.push(...Array.from(newRoom.participants.values()));
+      }
+      setParticipants(list);
+      console.log("👥 Resynced participants:", list.map((p) => p.identity));
     }
-    setParticipants(list);
-    console.log("👥 Resynced participants:", list.map(p => p.identity));
+
+    setParticipants([]);
+    console.log("👥 Participant list cleared at join/reshuffle");
+
+    setTimeout(() => resync(), 2500);
+
+    newRoom.on(RoomEvent.ParticipantConnected, (p) => {
+      console.log("👥 Participant joined:", p.identity);
+      resync();
+    });
+
+    newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+      console.log("👥 Participant left:", p.identity);
+      resync();
+    });
   }
-
-  // Clear participant list right away
-  setParticipants([]);
-  console.log("👥 Participant list cleared at join/reshuffle");
-
-  // Do an initial snapshot after a short delay (let peers connect)
-  setTimeout(() => {
-    resync();
-  }, 2500);
-
-  // Keep participant list in sync on join/leave
-  newRoom.on("participantConnected", (participant) => {
-    console.log("👥 Participant joined:", participant.identity);
-    resync();
-  });
-
-  newRoom.on("participantDisconnected", (participant) => {
-    console.log("👥 Participant left:", participant.identity);
-    resync();
-  });
-}
-
-  // Event-driven updates
-  newRoom.on(RoomEvent.ParticipantConnected, (p) => {
-    console.log("👥 Participant joined:", p.identity);
-    setParticipants((prev) => [...prev, p]);
-  });
-
-  newRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
-    console.log("👥 Participant left:", p.identity);
-    setParticipants((prev) =>
-      prev.filter((x) => x.identity !== p.identity)
-    );
-  });
-}
 
   // --- Join Room
-async function handleJoin() {
-  try {
-    await joinRoom({
+  async function handleJoin() {
+    try {
+      await joinRoom({
         roomName,
         username,
-		onConnected: (newRoom, handle) => {
-		  setRoom(newRoom);
-		  setUsername((prev) => prev || handle);
-		  setConnectText("Connected");
-		  setConnectDisabled(true);
-		  setIsMuted(false);
-		  
-		  console.log("✅ Connected as", handle);
+        onConnected: async (newRoom, handle) => {
+          setRoom(newRoom);
+          setUsername((prev) => prev || handle);
+          setConnectText("Connected");
+          setConnectDisabled(true);
+          setIsMuted(false);
 
-		  setupParticipantHandlers(newRoom);
-		 // ✅ Ensure we capture participants already in the room
-		  const existing = Array.from(newRoom.participants.values());
-		  if (newRoom.localParticipant) {
-			existing.unshift(newRoom.localParticipant);
-		  }
-		  setParticipants(existing);
-		  console.log("🔄 Initial participant sync:", existing.map(p => p.identity));
+          console.log("✅ Connected as", handle);
 
-		  scheduleReshuffle();
-		  playAudio("/RoameoRoam.mp3");
-		// Safe RoameoBot spawn check
-		  setTimeout(() => {
-		  // Pull the list of participants we actually know about
-		    const participants = Array.from(newRoom?.participants?.values() || []);
-		    const hasBot = participants.some((p) => p.identity === "RoameoBot");
+          setupParticipantHandlers(newRoom);
 
-		    if (!hasBot) {
-			fetch("/api/add-agent?room=" + roomName)
-			  .then(async (res) => {
-				if (!res.ok) {
-				  throw new Error("Failed to fetch RoameoBot token");
-				}
+          const existing = Array.from(newRoom.participants.values());
+          if (newRoom.localParticipant) {
+            existing.unshift(newRoom.localParticipant);
+          }
+          setParticipants(existing);
+          console.log(
+            "🔄 Initial participant sync:",
+            existing.map((p) => p.identity)
+          );
 
-				const { token, url, identity } = await res.json();
+          scheduleReshuffle();
 
-				console.log("🤖 Spawning RoameoBot as", identity);
+          // 🎵 Wait for welcome audio before spawning bot
+          try {
+            await playAudio("/RoameoRoam.mp3");
+          } catch {
+            console.warn("⚠️ Skipping bot delay since audio failed");
+          }
 
-				const botFrame = document.createElement("iframe");
-				botFrame.style.display = "none";
-				botFrame.src = `/bot.html?token=${encodeURIComponent(
-				  token
-				)}&url=${encodeURIComponent(url)}`;
-				document.body.appendChild(botFrame);
-			  })
-			  .catch((err) => {
-				console.error("🚨 RoameoBot error:", err);
-			  });
-		    } else {
-			  console.log("👥 Skipping RoameoBot — already present in the room");
-		    }
-		  }, 5000); // ⏳ wait 5s
+          // Spawn RoameoBot if missing
+          const participantsNow = Array.from(
+            newRoom?.participants?.values?.() || []
+          );
+          const hasBot = participantsNow.some((p) => p.identity === "RoameoBot");
 
-		},
-      onDisconnected: () => {
-        console.log("❌ Disconnected");
-        if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
-        if (warningTimer.current) clearTimeout(warningTimer.current);
-        setRoom(null);
-        setParticipants([]);
-        setConnectText("Connect");
-        setConnectDisabled(false);
-        setIsMuted(false);
-        // ⚠️ do NOT clear username here — preserve across reshuffles
-      },
-    });
-  } catch (err) {
-    console.error("Voice connection failed:", err);
-    setStatus("Voice connection failed");
-    setConnectDisabled(false);
-    setConnectText("Connect");
+          if (!hasBot) {
+            fetch("/api/add-agent?room=" + roomName)
+              .then(async (res) => {
+                if (!res.ok) {
+                  throw new Error("Failed to fetch RoameoBot token");
+                }
+                const { token, url, identity } = await res.json();
+                console.log("🤖 Spawning RoameoBot as", identity);
+                const botFrame = document.createElement("iframe");
+                botFrame.style.display = "none";
+                botFrame.src = `/bot.html?token=${encodeURIComponent(
+                  token
+                )}&url=${encodeURIComponent(url)}`;
+                document.body.appendChild(botFrame);
+              })
+              .catch((err) => {
+                console.error("🚨 RoameoBot error:", err);
+              });
+          } else {
+            console.log("👥 Skipping RoameoBot — already present in the room");
+          }
+        },
+        onDisconnected: () => {
+          console.log("❌ Disconnected");
+          if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+          if (warningTimer.current) clearTimeout(warningTimer.current);
+          setRoom(null);
+          setParticipants([]);
+          setConnectText("Connect");
+          setConnectDisabled(false);
+          setIsMuted(false);
+        },
+      });
+    } catch (err) {
+      console.error("Voice connection failed:", err);
+      setStatus("Voice connection failed");
+      setConnectDisabled(false);
+      setConnectText("Connect");
+    }
   }
-}
 
-  // --- Disconnect Room
+  // --- Disconnect
   function handleDisconnect() {
     console.log("👋 Manual disconnect");
     if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
@@ -229,35 +205,27 @@ async function handleJoin() {
   }
 
   // --- Reshuffle
-	async function handleReshuffle() {
-	  console.log("🔄 Performing reshuffle...");
+  async function handleReshuffle() {
+    console.log("🔄 Performing reshuffle...");
+    if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
+    if (warningTimer.current) clearTimeout(warningTimer.current);
 
-	  // clear old timers just in case
-	  if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
-	  if (warningTimer.current) clearTimeout(warningTimer.current);
+    try {
+      if (room) {
+        await room.disconnect();
+      }
+      setRoom(null);
+      setParticipants([]);
+      setConnectText("Connect");
+      setConnectDisabled(false);
+      setIsMuted(false);
 
-	  try {
-		// disconnect if still in a room
-		if (room) {
-		  await room.disconnect();
-		}
-
-		// reset UI state
-		setRoom(null);
-		setParticipants([]);
-		setConnectText("Connect");
-		setConnectDisabled(false);
-		setIsMuted(false);
-
-		// rejoin the lobby (or next room) automatically
-		await handleJoin();
-
-		// ⏱️ restart reshuffle + warning timers
-		scheduleReshuffle();
-	  } catch (err) {
-		console.error("❌ Reshuffle failed:", err);
-	  }
-	}
+      await handleJoin();
+      scheduleReshuffle();
+    } catch (err) {
+      console.error("❌ Reshuffle failed:", err);
+    }
+  }
 
   // --- Toggle Mute
   async function handleMuteToggle() {
@@ -284,7 +252,6 @@ async function handleJoin() {
     <div className="relative w-full h-screen">
       <div id="map" className="absolute top-0 left-0 w-full h-full" />
 
-      {/* User + Participants */}
       {room && (
         <div className="absolute top-5 left-5 z-50 space-y-2">
           <div className="bg-black/70 text-white px-4 py-2 rounded-lg">
@@ -301,7 +268,6 @@ async function handleJoin() {
         </div>
       )}
 
-      {/* Connect / Disconnect */}
       {!room && (
         <button
           onClick={handleJoin}
@@ -325,7 +291,6 @@ async function handleJoin() {
         </button>
       )}
 
-      {/* Controls */}
       {room && (
         <Controls
           isMuted={isMuted}
@@ -334,7 +299,6 @@ async function handleJoin() {
         />
       )}
 
-      {/* Status */}
       {status && <Status message={status} />}
     </div>
   );
