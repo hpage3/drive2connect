@@ -4,13 +4,16 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const room = searchParams.get('room') || "lobby";
   const user = searchParams.get('user');
-  console.log("🔑 Token request params:", { room, user });
 
+  console.log("🔑 Incoming token request:");
+  console.log("   Room param:", room);
+  console.log("   User param:", user);
 
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
 
   if (!apiKey || !apiSecret) {
+    console.error("🚨 Missing LiveKit credentials", { apiKey, apiSecret });
     return new Response(JSON.stringify({ error: 'Missing LiveKit credentials' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
@@ -18,6 +21,7 @@ export async function GET(req) {
   }
 
   try {
+    // Create a token tied to the requested room & user
     const at = new AccessToken(apiKey, apiSecret, {
       identity: user,
       name: user,
@@ -30,15 +34,19 @@ export async function GET(req) {
       canSubscribe: true,
     });
 
-    // ✅ v2 requires await here
+    // v2 requires await here
     const jwt = await at.toJwt();
 
-    return new Response(JSON.stringify({ token: jwt }), {
+    console.log("✅ Token generated successfully");
+    console.log("   Room granted:", room);
+    console.log("   Identity granted:", user);
+
+    return new Response(JSON.stringify({ token: jwt, room, user }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('Token generation error:', err);
+    console.error('🚨 Token generation error:', err);
     return new Response(JSON.stringify({ error: 'Token generation failed' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
