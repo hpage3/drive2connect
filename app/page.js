@@ -235,7 +235,7 @@ function setupParticipantHandlers(newRoom) {
 			  console.log("👥 Skipping RoameoBot — already present in the room");
 			}
 		  }, 3000);
-		}
+		},
 
         onDisconnected: () => {
           console.log("❌ Disconnected");
