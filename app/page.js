@@ -41,18 +41,16 @@ export default function Home() {
     setParticipants((prev) => prev.filter((x) => x.identity !== p.identity));
   }
 
-	function resyncParticipants(room) {
-	  // Grab everyone already in the room (bot included, if it connected first)
-	  const existing = Array.from(room.participants.values());
-	  console.log("🔄 Resyncing participants:", existing.map(p => p.identity));
+function resyncParticipants(room) {
+  if (!room) {
+    console.warn("⚠️ Tried to resync participants, but room is undefined");
+    return;
+  }
+  const participants = Array.from(room.participants?.values?.() || []);
+  console.log("🔄 Resyncing participants:", participants.map(p => p.identity));
+  setParticipants(participants);
+}
 
-	  setParticipants(existing);
-
-	  // Optionally include yourself
-	  if (room.localParticipant) {
-		setParticipants((prev) => [room.localParticipant, ...prev]);
-	  }
-	}
   // --- Schedule reshuffle timers
 	function scheduleReshuffle() {
 	  // clear any old timers
@@ -68,7 +66,15 @@ export default function Home() {
 		playAudio("/Reshuffle.mp3");
 	  }, warningDelay);
 
-	  console.log("⏳ Scheduling reshuffle at 5 min");
+	  // Convert ms to minutes/seconds for nice logs
+	  function formatMs(ms) {
+		  const totalSec = Math.floor(ms / 1000);
+		  const min = Math.floor(totalSec / 60);
+		  const sec = totalSec % 60;
+		  return sec === 0 ? `${min}m` : `${min}m${sec}s`;
+	  }
+
+	  console.log(`⏳ Scheduling reshuffle warning at ${formatMs(warningDelay)} (${Math.floor((reshuffleDelay - warningDelay)/1000)}s before reshuffle)`);
 	  reshuffleTimer.current = setTimeout(() => {
 		console.log("🔄 Reshuffle triggered");
 		handleReshuffle();
@@ -77,21 +83,44 @@ export default function Home() {
 
   // --- Setup participant listeners
 function setupParticipantHandlers(newRoom) {
-  // Clear on join/reshuffle
+  if (!newRoom) {
+    console.warn("⚠️ setupParticipantHandlers called with no room");
+    return;
+  }
+
+  // Helper: refresh the participants list safely
+  function resync() {
+    const list = [];
+    if (newRoom.localParticipant) {
+      list.push(newRoom.localParticipant);
+    }
+    if (newRoom.participants && newRoom.participants.values) {
+      list.push(...Array.from(newRoom.participants.values()));
+    }
+    setParticipants(list);
+    console.log("👥 Resynced participants:", list.map(p => p.identity));
+  }
+
+  // Clear participant list right away
   setParticipants([]);
   console.log("👥 Participant list cleared at join/reshuffle");
 
-  // Initial snapshot (include self + remote peers)
+  // Do an initial snapshot after a short delay (let peers connect)
   setTimeout(() => {
-    if (newRoom.localParticipant && newRoom.participants) {
-      const list = [
-        newRoom.localParticipant,
-        ...Array.from(newRoom.participants.values())
-      ];
-      setParticipants(list);
-      console.log("👥 Initial snapshot:", list.map(p => p.identity));
-    }
-  }, 2500); // wait a bit so remote peers are available
+    resync();
+  }, 2500);
+
+  // Keep participant list in sync on join/leave
+  newRoom.on("participantConnected", (participant) => {
+    console.log("👥 Participant joined:", participant.identity);
+    resync();
+  });
+
+  newRoom.on("participantDisconnected", (participant) => {
+    console.log("👥 Participant left:", participant.identity);
+    resync();
+  });
+}
 
   // Event-driven updates
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
