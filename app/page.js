@@ -92,9 +92,12 @@ function setupParticipantHandlers(newRoom) {
   console.log("👥 Initial sync:", initialList.map((p) => p.identity));
   
   
-    // 🔎 Debug: dump raw participants map
-  console.log("🔎 Full participants map:", Array.from(newRoom.participants.entries()));
-  
+ // 🔎 Debug
+  if (newRoom.participants && typeof newRoom.participants.entries === "function") {
+    console.log("🔎 Full participants map:", Array.from(newRoom.participants.entries()));
+  } else {
+    console.log("⚠️ Participants map not ready yet", newRoom.participants);
+  }
   // Listen for join
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
     console.log("👥 Participant joined:", p.identity);
