@@ -118,124 +118,124 @@ function setupParticipantHandlers(newRoom) {
       await joinRoom({
         roomName,
         username,
-onConnected: async (newRoom, handle) => {
-  setRoom(newRoom);
-  setUsername((prev) => prev || handle);
-  setConnectText("Connected");
-  setConnectDisabled(true);
-  setIsMuted(false);
+		onConnected: async (newRoom, handle) => {
+		  setRoom(newRoom);
+		  setUsername((prev) => prev || handle);
+		  setConnectText("Connected");
+		  setConnectDisabled(true);
+		  setIsMuted(false);
 
-  console.log("✅ Connected as", handle);
-  console.log("🌐 Room name:", newRoom.name);
-  console.log("🌐 Server URL:", newRoom.engine?.url || "(no URL)");
+		  console.log("✅ Connected as", handle);
+		  console.log("🌐 Room name:", newRoom.name);
+		  console.log("🌐 Server URL:", newRoom.engine?.url || "(no URL)");
 
-  newRoom.once(RoomEvent.Connected, () => {
-    console.log(
-      "🟢 Room fully connected. SID:",
-      newRoom.sid,
-      "Local SID:",
-      newRoom.localParticipant?.sid
-    );
-  });
+		  newRoom.once(RoomEvent.Connected, () => {
+			console.log(
+			  "🟢 Room fully connected. SID:",
+			  newRoom.sid,
+			  "Local SID:",
+			  newRoom.localParticipant?.sid
+			);
+		  });
 
-  if (newRoom.state === "connected") {
-    console.log("🟢 LiveKit Room Connected (immediate).");
-    console.log("Room ID:", newRoom.sid);
-    setupParticipantHandlers(newRoom);
-  } else {
-    newRoom.once(RoomEvent.Connected, () => {
-      console.log("🟢 LiveKit Room Connected.");
-      console.log("Room ID:", newRoom.sid);
-      setupParticipantHandlers(newRoom);
-    });
-  }
+		  if (newRoom.state === "connected") {
+			console.log("🟢 LiveKit Room Connected (immediate).");
+			console.log("Room ID:", newRoom.sid);
+			setupParticipantHandlers(newRoom);
+		  } else {
+			newRoom.once(RoomEvent.Connected, () => {
+			  console.log("🟢 LiveKit Room Connected.");
+			  console.log("Room ID:", newRoom.sid);
+			  setupParticipantHandlers(newRoom);
+			});
+		  }
 
-  // Initial sync
-  const existing = [];
-  if (newRoom.participants && typeof newRoom.participants.values === "function") {
-    existing.push(...Array.from(newRoom.participants.values()));
-  }
-  if (newRoom.localParticipant) {
-    existing.unshift(newRoom.localParticipant);
-  }
-  setParticipants(existing);
-  console.log(
-    "🔄 Initial participant sync:",
-    existing.map((p) => p.identity)
-  );
+		  // Initial sync
+		  const existing = [];
+		  if (newRoom.participants && typeof newRoom.participants.values === "function") {
+			existing.push(...Array.from(newRoom.participants.values()));
+		  }
+		  if (newRoom.localParticipant) {
+			existing.unshift(newRoom.localParticipant);
+		  }
+		  setParticipants(existing);
+		  console.log(
+			"🔄 Initial participant sync:",
+			existing.map((p) => p.identity)
+		  );
 
-  // 🔄 Force resync after 2s to ensure participant state arrives from server
-  setTimeout(() => {
-    if (!newRoom.participants) {
-      console.warn("⚠️ Participants map not ready yet", newRoom.participants);
-      return;
-    }
-    const synced = [
-      newRoom.localParticipant,
-      ...Array.from(newRoom.participants.values())
-    ].filter(Boolean);
+		  // 🔄 Force resync after 2s to ensure participant state arrives from server
+		  setTimeout(() => {
+			if (!newRoom.participants) {
+			  console.warn("⚠️ Participants map not ready yet", newRoom.participants);
+			  return;
+			}
+			const synced = [
+			  newRoom.localParticipant,
+			  ...Array.from(newRoom.participants.values())
+			].filter(Boolean);
 
-    setParticipants(synced);
-    console.log("🔄 Forced resync after 2s:", synced.map((p) => p.identity));
-  }, 2000);
+			setParticipants(synced);
+			console.log("🔄 Forced resync after 2s:", synced.map((p) => p.identity));
+		  }, 2000);
 
-  // Debug: Log full participant list after delay
-  setTimeout(() => {
-    const delayedList = [];
-    if (newRoom.localParticipant) {
-      delayedList.push(newRoom.localParticipant);
-    }
-    if (newRoom.participants && typeof newRoom.participants.values === "function") {
-      delayedList.push(...Array.from(newRoom.participants.values()));
-    }
+		  // Debug: Log full participant list after delay
+		  setTimeout(() => {
+			const delayedList = [];
+			if (newRoom.localParticipant) {
+			  delayedList.push(newRoom.localParticipant);
+			}
+			if (newRoom.participants && typeof newRoom.participants.values === "function") {
+			  delayedList.push(...Array.from(newRoom.participants.values()));
+			}
 
-    console.log("🕵️ Full participant list after 3s:");
-    delayedList.forEach((p) => {
-      console.log("🔹", p.identity);
-    });
-  }, 3000);
+			console.log("🕵️ Full participant list after 3s:");
+			delayedList.forEach((p) => {
+			  console.log("🔹", p.identity);
+			});
+		  }, 3000);
 
-  scheduleReshuffle();
+		  scheduleReshuffle();
 
-  // 🎵 Wait for welcome audio before spawning bot
-  try {
-    await playAudio("/RoameoRoam.mp3");
-  } catch {
-    console.warn("⚠️ Skipping bot delay since audio failed");
-  }
+		  // 🎵 Wait for welcome audio before spawning bot
+		  try {
+			await playAudio("/RoameoRoam.mp3");
+		  } catch {
+			console.warn("⚠️ Skipping bot delay since audio failed");
+		  }
 
-  // 🛠 Delay bot check by 3 seconds to ensure remote participants have arrived
-  setTimeout(() => {
-    const participantsNow = [];
-    if (newRoom.localParticipant) {
-      participantsNow.push(newRoom.localParticipant);
-    }
-    if (newRoom.participants && typeof newRoom.participants.values === "function") {
-      participantsNow.push(...Array.from(newRoom.participants.values()));
-    }
+		  // 🛠 Delay bot check by 3 seconds to ensure remote participants have arrived
+		  setTimeout(() => {
+			const participantsNow = [];
+			if (newRoom.localParticipant) {
+			  participantsNow.push(newRoom.localParticipant);
+			}
+			if (newRoom.participants && typeof newRoom.participants.values === "function") {
+			  participantsNow.push(...Array.from(newRoom.participants.values()));
+			}
 
-    const hasBot = participantsNow.some((p) => p.identity === "RoameoBot");
+			const hasBot = participantsNow.some((p) => p.identity === "RoameoBot");
 
-    console.log("🤖 Bot Check after 3s. Participants:", participantsNow.map(p => p.identity));
-    if (!hasBot) {
-      fetch("/api/add-agent?room=" + roomName)
-        .then(async (res) => {
-          if (!res.ok) throw new Error("Failed to fetch RoameoBot token");
-          const { token, url, identity } = await res.json();
-          console.log("🤖 Spawning RoameoBot as", identity);
-          const botFrame = document.createElement("iframe");
-          botFrame.style.display = "none";
-          botFrame.src = `/bot.html?token=${encodeURIComponent(token)}&url=${encodeURIComponent(url)}`;
-          document.body.appendChild(botFrame);
-        })
-        .catch((err) => {
-          console.error("🚨 RoameoBot error:", err);
-        });
-    } else {
-      console.log("👥 Skipping RoameoBot — already present in the room");
-    }
-  }, 3000);
-}
+			console.log("🤖 Bot Check after 3s. Participants:", participantsNow.map(p => p.identity));
+			if (!hasBot) {
+			  fetch("/api/add-agent?room=" + roomName)
+				.then(async (res) => {
+				  if (!res.ok) throw new Error("Failed to fetch RoameoBot token");
+				  const { token, url, identity } = await res.json();
+				  console.log("🤖 Spawning RoameoBot as", identity);
+				  const botFrame = document.createElement("iframe");
+				  botFrame.style.display = "none";
+				  botFrame.src = `/bot.html?token=${encodeURIComponent(token)}&url=${encodeURIComponent(url)}`;
+				  document.body.appendChild(botFrame);
+				})
+				.catch((err) => {
+				  console.error("🚨 RoameoBot error:", err);
+				});
+			} else {
+			  console.log("👥 Skipping RoameoBot — already present in the room");
+			}
+		  }, 3000);
+		}
 
         onDisconnected: () => {
           console.log("❌ Disconnected");
