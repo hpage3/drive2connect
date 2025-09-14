@@ -126,10 +126,11 @@ export default function Home() {
 		  console.log("🌐 Server URL:", newRoom.engine?.url || "(no URL)");
 		 // 🛠️ Wait until the room is *fully* connected
 		  newRoom.once(RoomEvent.Connected, () => {
-		  console.log("🟢 LiveKit Room Connected.");
-		  console.log("Room ID:", newRoom.sid);
+		    console.log("🟢 LiveKit Room Connected.");
+		    console.log("Room ID:", newRoom.sid);
 
-          setupParticipantHandlers(newRoom);
+            setupParticipantHandlers(newRoom);
+		  })
 
           const existing = [];
           if (newRoom.participants && typeof newRoom.participants.values === "function") {
