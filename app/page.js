@@ -145,10 +145,16 @@ export default function Home() {
           }
 
           // Spawn RoameoBot if missing
-          const participantsNow = Array.from(
-            newRoom?.participants?.values?.() || []
-          );
-          const hasBot = participantsNow.some((p) => p.identity === "RoameoBot");
+		 // Spawn RoameoBot if missing
+		 const participantsNow = [];
+		 if (newRoom.participants && typeof newRoom.participants.values === "function") {
+		   participantsNow.push(...Array.from(newRoom.participants.values()));
+		 }
+		 if (newRoom.localParticipant) {
+		   participantsNow.unshift(newRoom.localParticipant);
+		 }
+		 const hasBot = participantsNow.some((p) => p.identity === "RoameoBot");
+
 
           if (!hasBot) {
             fetch("/api/add-agent?room=" + roomName)
