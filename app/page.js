@@ -80,14 +80,17 @@ function setupParticipantHandlers(newRoom) {
     return;
   }
 
-  // Initial sync: build list from current state
+// Initial sync: build list from current state
   const initialList = [
     newRoom.localParticipant,
-    ...Array.from(newRoom.participants.values())
+    ...(newRoom.participants && typeof newRoom.participants.values === "function"
+      ? Array.from(newRoom.participants.values())
+      : [])
   ].filter(Boolean);
+
   setParticipants(initialList);
   console.log("👥 Initial sync:", initialList.map((p) => p.identity));
-
+  
   // Listen for join
   newRoom.on(RoomEvent.ParticipantConnected, (p) => {
     console.log("👥 Participant joined:", p.identity);
