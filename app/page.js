@@ -121,22 +121,39 @@ export default function Home() {
           setConnectDisabled(true);
           setIsMuted(false);
 
-          console.log("✅ Connected as", handle);
+		  console.log("✅ Connected as", handle);
+		  console.log("🌐 Room name:", newRoom.name);
+		  console.log("🌐 Server URL:", newRoom.engine?.url || "(no URL)");
 
           setupParticipantHandlers(newRoom);
 
-		  const existing = [];
-		  if (newRoom.participants && typeof newRoom.participants.values === "function") {
-			existing.push(...Array.from(newRoom.participants.values()));
-		  }
-		  if (newRoom.localParticipant) {
-		    existing.unshift(newRoom.localParticipant);
-		  }
+          const existing = [];
+          if (newRoom.participants && typeof newRoom.participants.values === "function") {
+            existing.push(...Array.from(newRoom.participants.values()));
+          }
+          if (newRoom.localParticipant) {
+            existing.unshift(newRoom.localParticipant);
+          }
           setParticipants(existing);
           console.log(
             "🔄 Initial participant sync:",
             existing.map((p) => p.identity)
           );
+		  // Debug: Log full participant list after delay
+			setTimeout(() => {
+			  const delayedList = [];
+			  if (newRoom.localParticipant) {
+				delayedList.push(newRoom.localParticipant);
+			  }
+			  if (newRoom.participants && typeof newRoom.participants.values === "function") {
+				delayedList.push(...Array.from(newRoom.participants.values()));
+			  }
+
+			  console.log("🕵️ Full participant list after 3s:");
+			  delayedList.forEach((p) => {
+				console.log("🔹", p.identity);
+			  });
+			}, 3000);
 
           scheduleReshuffle();
 
@@ -146,41 +163,39 @@ export default function Home() {
           } catch {
             console.warn("⚠️ Skipping bot delay since audio failed");
           }
+			// 🛠 Delay bot check by 3 seconds to ensure remote participants have arrived
+			setTimeout(() => {
+			  const participantsNow = [];
+			  if (newRoom.localParticipant) {
+				participantsNow.push(newRoom.localParticipant);
+			  }
+			  if (newRoom.participants && typeof newRoom.participants.values === "function") {
+				participantsNow.push(...Array.from(newRoom.participants.values()));
+			  }
 
-          // Spawn RoameoBot if missing
-		 // Spawn RoameoBot if missing
-		 const participantsNow = [];
-		 if (newRoom.participants && typeof newRoom.participants.values === "function") {
-		   participantsNow.push(...Array.from(newRoom.participants.values()));
-		 }
-		 if (newRoom.localParticipant) {
-		   participantsNow.unshift(newRoom.localParticipant);
-		 }
-		 const hasBot = participantsNow.some((p) => p.identity === "RoameoBot");
+			  const hasBot = participantsNow.some((p) => p.identity === "RoameoBot");
 
+			  console.log("🤖 Bot Check after 3s. Participants:", participantsNow.map(p => p.identity));
+			  if (!hasBot) {
+				fetch("/api/add-agent?room=" + roomName)
+				  .then(async (res) => {
+					if (!res.ok) throw new Error("Failed to fetch RoameoBot token");
+					const { token, url, identity } = await res.json();
+					console.log("🤖 Spawning RoameoBot as", identity);
+					const botFrame = document.createElement("iframe");
+					botFrame.style.display = "none";
+					botFrame.src = `/bot.html?token=${encodeURIComponent(token)}&url=${encodeURIComponent(url)}`;
+					document.body.appendChild(botFrame);
+				  })
+				  .catch((err) => {
+					console.error("🚨 RoameoBot error:", err);
+				  });
+			  } else {
+				console.log("👥 Skipping RoameoBot — already present in the room");
+			  }
+			}, 3000);
+		  }
 
-          if (!hasBot) {
-            fetch("/api/add-agent?room=" + roomName)
-              .then(async (res) => {
-                if (!res.ok) {
-                  throw new Error("Failed to fetch RoameoBot token");
-                }
-                const { token, url, identity } = await res.json();
-                console.log("🤖 Spawning RoameoBot as", identity);
-                const botFrame = document.createElement("iframe");
-                botFrame.style.display = "none";
-                botFrame.src = `/bot.html?token=${encodeURIComponent(
-                  token
-                )}&url=${encodeURIComponent(url)}`;
-                document.body.appendChild(botFrame);
-              })
-              .catch((err) => {
-                console.error("🚨 RoameoBot error:", err);
-              });
-          } else {
-            console.log("👥 Skipping RoameoBot — already present in the room");
-          }
-        },
         onDisconnected: () => {
           console.log("❌ Disconnected");
           if (reshuffleTimer.current) clearTimeout(reshuffleTimer.current);
