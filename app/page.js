@@ -121,6 +121,10 @@ function setupParticipantHandlers(newRoom) {
 		  console.log("✅ Connected as", handle);
 		  console.log("🌐 Room name:", newRoom.name);
 		  console.log("🌐 Server URL:", newRoom.engine?.url || "(no URL)");
+		  newRoom.once(RoomEvent.Connected, () => {
+			console.log("🟢 Room fully connected. SID:", newRoom.sid, "Local SID:", newRoom.localParticipant?.sid);
+		  });
+
 		 // Handle already-connected rooms
 		  if (newRoom.state === "connected") {
 			console.log("🟢 LiveKit Room Connected (immediate).");
