@@ -95,7 +95,7 @@ export default function Home() {
     setParticipants([]);
     console.log("👥 Participant list cleared at join/reshuffle");
 
-    setTimeout(() => resync(), 2500);
+    setTimeout(() => resync(), 4000);
 
     newRoom.on(RoomEvent.ParticipantConnected, (p) => {
       console.log("👥 Participant joined:", p.identity);
@@ -106,6 +106,10 @@ export default function Home() {
       console.log("👥 Participant left:", p.identity);
       resync();
     });
+	newRoom.once(RoomEvent.Connected, () => {
+      console.log("🟢 LiveKit Room Connected — final participant sync");
+      resync();
+	});
   }
 
   // --- Join Room
